@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Facility Location MILP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@300;400;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:#111e2d; --bg1:#162538; --bg2:#1a2d42; --bg3:#1e3450; --surface:#223760;
+  --border:rgba(99,161,220,0.18); --border2:rgba(99,161,220,0.32); --border3:rgba(99,161,220,0.55);
+  --ink:#e8f4ff; --ink2:#9dbdd8; --ink3:#5580a0;
+  --cyan:#38d9c8; --cyan2:#22b8a6; --cyan-dim:rgba(56,217,200,0.1); --cyan-glow:rgba(56,217,200,0.22);
+  --gold:#f0c060; --gold-dim:rgba(240,192,96,0.1);
+  --red:#ff6b6b; --green:#5af090; --green-dim:rgba(90,240,144,0.1);
+  --purple:#c084fc; --purple-dim:rgba(192,132,252,0.1);
+  --mono:'JetBrains Mono',monospace; --body:'Outfit',sans-serif; --display:'DM Serif Display',serif;
+  --r:8px; --r2:14px; --r3:20px;
+}
+body {
+  font-family:var(--body); background-color:var(--bg);
+  background-image: linear-gradient(rgba(99,161,220,0.04) 1px,transparent 1px), linear-gradient(90deg,rgba(99,161,220,0.04) 1px,transparent 1px), linear-gradient(rgba(99,161,220,0.014) 1px,transparent 1px), linear-gradient(90deg,rgba(99,161,220,0.014) 1px,transparent 1px);
+  background-size:80px 80px,80px 80px,16px 16px,16px 16px;
+  color:var(--ink); padding:32px 24px 72px; min-height:100vh;
+}
+.wrap { max-width:1360px; margin:0 auto; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+@keyframes pulse { 0%,100%{opacity:.45} 50%{opacity:.9} }
+.f1{animation:fadeUp .5s .0s ease both} .f2{animation:fadeUp .5s .09s ease both}
+.f3{animation:fadeUp .5s .18s ease both} .f4{animation:fadeUp .5s .27s ease both}
+
+/* Header */
+.header { display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:16px; margin-bottom:34px; padding-bottom:22px; border-bottom:1px solid var(--border2); position:relative; }
+.header::after { content:''; position:absolute; bottom:-1px; left:0; width:180px; height:2px; background:linear-gradient(90deg,var(--cyan),transparent); }
+.header-left { display:flex; flex-direction:column; gap:8px; }
+.header h1 { font-family:var(--display); font-size:2.5rem; font-weight:400; letter-spacing:-.5px; color:var(--ink); line-height:1.1; }
+.header h1 em { color:var(--cyan); font-style:italic; }
+.badges { display:flex; gap:8px; flex-wrap:wrap; }
+.badge { font-family:var(--mono); font-size:.64rem; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; padding:3px 11px; border-radius:20px; border:1px solid; }
+.bc{color:var(--cyan);border-color:rgba(56,217,200,.4);background:var(--cyan-dim)}
+.bg{color:var(--gold);border-color:rgba(240,192,96,.38);background:var(--gold-dim)}
+.bn{color:var(--green);border-color:rgba(90,240,144,.35);background:var(--green-dim)}
+.bp{color:var(--purple);border-color:rgba(192,132,252,.38);background:var(--purple-dim)}
+.header-meta { font-family:var(--mono); font-size:.65rem; color:var(--ink3); text-align:right; line-height:2; }
+
+/* Problem selector */
+.prob-selector { background:var(--bg2); border:1px solid var(--border2); border-radius:var(--r3); padding:20px 26px; margin-bottom:26px; display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
+.prob-selector label { font-family:var(--mono); font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:var(--cyan); white-space:nowrap; }
+.prob-select {
+  font-family:var(--mono); font-size:.85rem; font-weight:600;
+  background:var(--bg3); color:var(--ink); border:1px solid var(--border2);
+  border-radius:var(--r); padding:10px 16px; cursor:pointer;
+  transition:border-color .18s, box-shadow .18s; flex:1; min-width:260px;
+}
+.prob-select:focus { outline:none; border-color:var(--cyan); box-shadow:0 0 12px rgba(56,217,200,.28); }
+.prob-select option { background:var(--bg2); color:var(--ink); }
+.prob-desc { font-family:var(--mono); font-size:.68rem; color:var(--ink3); line-height:1.8; padding:10px 14px; background:var(--bg1); border:1px solid var(--border); border-radius:var(--r); flex:2; min-width:220px; }
+
+/* Controls */
+.controls { background:var(--bg2); border:1px solid var(--border); border-radius:var(--r3); padding:18px 24px; display:flex; flex-wrap:wrap; align-items:flex-end; gap:22px; margin-bottom:26px; position:relative; overflow:hidden; }
+.controls::before { content:'PARAMETERS'; position:absolute; top:12px; right:20px; font-family:var(--mono); font-size:.58rem; font-weight:700; letter-spacing:2px; color:var(--ink3); opacity:.4; }
+.ig { display:flex; flex-direction:column; gap:5px; }
+.ig label { font-family:var(--mono); font-size:.67rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--cyan); }
+.ig input[type="number"] { width:96px; padding:9px 14px; font-family:var(--mono); font-size:1rem; font-weight:700; text-align:center; color:var(--ink); background:var(--bg3); border:1px solid var(--border2); border-radius:var(--r); transition:border-color .18s, box-shadow .18s; -moz-appearance:textfield; }
+.ig input::-webkit-outer-spin-button,.ig input::-webkit-inner-spin-button{-webkit-appearance:none}
+.ig input:focus { outline:none; border-color:var(--cyan); box-shadow:0 0 12px rgba(56,217,200,.28); }
+
+/* Buttons */
+.btn { padding:10px 22px; border:1px solid; border-radius:var(--r); font-family:var(--mono); font-size:.73rem; font-weight:700; letter-spacing:.5px; text-transform:uppercase; cursor:pointer; transition:all .17s; position:relative; overflow:hidden; }
+.btn::after { content:''; position:absolute; inset:0; background:rgba(255,255,255,.06); opacity:0; transition:opacity .15s; }
+.btn:hover::after{opacity:1} .btn:active{transform:scale(.97)}
+.btn-build{background:var(--cyan-dim);color:var(--cyan);border-color:var(--cyan2)}
+.btn-build:hover{box-shadow:0 0 14px rgba(56,217,200,.35);border-color:var(--cyan)}
+.btn-gen{background:var(--gold-dim);color:var(--gold);border-color:rgba(240,192,96,.45)}
+.btn-gen:hover{box-shadow:0 0 14px rgba(240,192,96,.3);border-color:var(--gold)}
+.btn-viz{background:var(--green-dim);color:var(--green);border-color:rgba(90,240,144,.4)}
+.btn-viz:hover{box-shadow:0 0 14px rgba(90,240,144,.28);border-color:var(--green)}
+.btn-solve{background:var(--purple-dim);color:var(--purple);border-color:rgba(192,132,252,.45)}
+.btn-solve:hover{box-shadow:0 0 14px rgba(192,132,252,.3);border-color:var(--purple)}
+.btn-dl{background:transparent;color:var(--ink3);border-color:var(--border)}
+.btn-dl:hover{color:var(--ink2);border-color:var(--border2)}
+
+/* Layout */
+.mg{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+@media(max-width:900px){.mg{grid-template-columns:1fr}}
+
+/* Cards */
+.card{background:var(--bg1);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;transition:border-color .2s}
+.card:hover{border-color:var(--border2)}
+.card-head{padding:11px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg2)}
+.card-head h2{font-family:var(--mono);font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--ink2)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 6px var(--cyan)}
+.card-body{padding:14px 18px;overflow-x:auto}
+
+/* Tables */
+table{border-collapse:collapse;width:100%;min-width:260px}
+th,td{border:1px solid var(--border);padding:8px 10px;text-align:center;font-size:.8rem}
+th{background:var(--bg2);font-family:var(--mono);font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--ink3)}
+td.label{font-family:var(--mono);font-size:.72rem;font-weight:700;color:var(--cyan);background:var(--bg2);min-width:40px}
+td.label-gold{font-family:var(--mono);font-size:.72rem;font-weight:700;color:var(--gold);background:var(--bg2);min-width:40px}
+td input{width:88px;padding:6px 10px;text-align:center;background:var(--bg3);color:var(--ink);border:1px solid var(--border);border-radius:6px;font-family:var(--mono);font-size:.82rem;font-weight:600;transition:border-color .15s, box-shadow .15s;-moz-appearance:textfield}
+td input::-webkit-outer-spin-button,td input::-webkit-inner-spin-button{-webkit-appearance:none}
+td input:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 8px rgba(56,217,200,.2)}
+tr:hover td{background:rgba(99,161,220,.04)}
+tr:hover td.label,tr:hover td.label-gold{background:var(--bg2)}
+td.ro{color:var(--ink2);font-family:var(--mono);font-size:.8rem}
+
+/* Action bar */
+.abar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:16px 22px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);margin-bottom:24px}
+.abar .hint{font-family:var(--mono);font-size:.62rem;color:var(--ink3);margin-left:auto}
+.sep{width:1px;height:26px;background:var(--border2)}
+
+/* Output */
+#output{padding:20px 22px;font-family:var(--mono);font-size:.79rem;line-height:1.85;min-height:120px;max-height:560px;overflow-y:auto;color:var(--ink);scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+#output::-webkit-scrollbar{width:4px}
+#output::-webkit-scrollbar-track{background:transparent}
+#output::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+#output h3{font-family:var(--body);font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:1.8px;color:var(--gold);margin:18px 0 10px;display:flex;align-items:center;gap:8px}
+#output h3:first-child{margin-top:0}
+#output h3::before{content:'';display:inline-block;width:18px;height:1px;background:var(--gold);opacity:.5}
+#output .blk{background:rgba(56,217,200,.04);border:1px solid rgba(56,217,200,.13);border-left:3px solid var(--cyan2);border-radius:var(--r);padding:11px 15px;margin-bottom:10px}
+#output .blk.cap{background:rgba(240,192,96,.04);border-color:rgba(240,192,96,.13);border-left-color:var(--gold)}
+#output .blk.var{background:rgba(90,240,144,.04);border-color:rgba(90,240,144,.13);border-left-color:var(--green)}
+#output .obj{font-size:.83rem;font-weight:700;color:var(--cyan)}
+#output .cl{margin:4px 0 2px 12px}
+#output .cl div{margin:5px 0;color:var(--ink2)}
+#output details summary{cursor:pointer;color:var(--ink3);font-size:.68rem;margin-top:10px;transition:color .15s}
+#output details summary:hover{color:var(--ink2)}
+#output details > div{margin-top:8px;font-size:.7rem;color:var(--ink3);line-height:2.1}
+.out-empty{text-align:center;padding:52px 20px;font-family:var(--mono);font-size:.73rem;color:var(--ink3);line-height:2.4}
+.big-sym{font-family:var(--display);font-size:3.5rem;color:var(--border2);display:block;margin-bottom:10px;animation:pulse 3s ease-in-out infinite}
+
+/* Viz */
+#viz-container{position:relative;min-height:100px}
+.viz-legend{display:flex;gap:18px;flex-wrap:wrap;padding:10px 18px 14px;border-top:1px solid var(--border);font-family:var(--mono);font-size:.65rem;color:var(--ink3)}
+.leg-item{display:flex;align-items:center;gap:7px}
+.leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.viz-empty{text-align:center;padding:52px 20px;font-family:var(--mono);font-size:.73rem;color:var(--ink3);line-height:2.4}
+.big-icon{font-size:2.8rem;display:block;margin-bottom:12px;opacity:.18}
+
+/* Solver output */
+#solver-output{padding:20px 22px;font-family:var(--mono);font-size:.8rem;line-height:1.85;max-height:520px;overflow-y:auto;color:var(--ink);scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+
+/* Toast */
+#toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg3);color:var(--cyan);border:1px solid var(--cyan2);padding:10px 24px;border-radius:30px;font-family:var(--mono);font-size:.73rem;font-weight:700;box-shadow:0 0 24px rgba(56,217,200,.25);opacity:0;pointer-events:none;transition:all .22s;z-index:999}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+footer{text-align:center;margin-top:40px;font-family:var(--mono);font-size:.63rem;color:var(--ink3);line-height:2;border-top:1px solid var(--border);padding-top:20px}
+footer span{color:var(--cyan)}
+sub{font-size:.7em}
+
+/* Book problem specific */
+.book-note{font-family:var(--mono);font-size:.68rem;color:var(--gold);background:rgba(240,192,96,.07);border:1px solid rgba(240,192,96,.2);border-radius:var(--r);padding:8px 14px;margin-bottom:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="header f1">
+  <div class="header-left">
+    <h1>Facility Location <em>MILP</em></h1>
+    <div class="badges">
+      <span class="badge bc">Mixed Integer</span>
+      <span class="badge bg">Linear Program</span>
+      <span class="badge bn">Network Viz</span>
+      <span class="badge bp">B&amp;B Solver</span>
+    </div>
+  </div>
+  <div class="header-meta">
+    Individual facility capacities &amp; fixed costs<br>
+    Demand contraints &middot; Binary open indicator<br>
+    Flow variables X<sub>ij</sub> &nbsp;&middot;&nbsp; Y<sub>j</sub> &isin; {0,1}
+  </div>
+</div>
+
+<!-- Problem Selector -->
+<div class="prob-selector f2">
+  <label>&#9654; Select Problem</label>
+  <select class="prob-select" id="problemSelect" onchange="switchProblem()">
+    <option value="custom">Single Facility — One capacity level per facility</option>
+    <option value="book">Dual Facility — Low &amp; High capacity per facility</option>
+    <option value="cplm">Plant Location Model — Single Sourcing (Binary x<sub>ij</sub>)</option>
+  </select>
+  <div class="prob-desc" id="probDesc">Enter your own demand points, facilities, transportation costs, fixed costs, and capacities. Fully editable.</div>
+</div>
+
+<!-- CUSTOM PROBLEM PANEL -->
+<div id="panel-custom">
+  <div class="controls f2">
+    <div class="ig"><label>&#9632; Demand Points</label><input type="number" id="demandCount" value="3" min="1" max="10"></div>
+    <div class="ig"><label>&#9646; Potential Facilities</label><input type="number" id="facilityCount" value="3" min="1" max="10"></div>
+    <button class="btn btn-build" onclick="buildTables()">&#9654; Build Tables</button>
+  </div>
+  <div class="mg f3">
+    <div class="card">
+      <div class="card-head"><h2>Transportation Costs C<sub>ij</sub></h2><div class="dot"></div></div>
+      <div class="card-body" id="cost-table-wrap"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:18px;">
+      <div class="card">
+        <div class="card-head"><h2>Demand Quantities b<sub>i</sub></h2><div class="dot" style="background:var(--gold);box-shadow:0 0 6px var(--gold)"></div></div>
+        <div class="card-body" id="demand-table-wrap"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Facility Data — f<sub>j</sub> &amp; Cap<sub>j</sub></h2><div class="dot" style="background:var(--green);box-shadow:0 0 6px var(--green)"></div></div>
+        <div class="card-body" id="facility-table-wrap"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BOOK PROBLEM PANEL -->
+<div id="panel-book" style="display:none;">
+  <div class="controls f2">
+    <div class="ig"><label>&#9632; Demand Points</label><input type="number" id="bookDemandCount" value="5" min="1" max="10"></div>
+    <div class="ig"><label>&#9646; Potential Facilities</label><input type="number" id="bookFacilityCount" value="5" min="1" max="10"></div>
+    <button class="btn btn-build" onclick="buildBookTable()">&#9654; Build Tables</button>
+  </div>
+  <div class="card f3" style="margin-bottom:20px;">
+    <div class="card-head"><h2>Dual Facility Problem — Low / High Capacity</h2><div class="dot" style="background:var(--purple);box-shadow:0 0 6px var(--purple)"></div></div>
+    <div class="card-body">
+      <div class="book-note">&#9656; Each facility (F1, F2 …) can be opened at LOW or HIGH capacity, or remain CLOSED. Edit all costs, fixed costs, capacities, and demands below.</div>
+      <div style="overflow-x:auto;" id="book-table-wrap"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CPLM PROBLEM PANEL -->
+<div id="panel-cplm" style="display:none;">
+  <div class="controls f2">
+    <div class="ig"><label>&#9632; Customers (m)</label><input type="number" id="cplmDemandCount" value="4" min="1" max="10"></div>
+    <div class="ig"><label>&#9646; Facilities (n)</label><input type="number" id="cplmFacilityCount" value="3" min="1" max="10"></div>
+    <button class="btn btn-build" onclick="buildCplmTable()">&#9654; Build Tables</button>
+  </div>
+  <div class="mg f3">
+    <div class="card">
+      <div class="card-head"><h2>Unit Cost Matrix c<sub>ij</sub> (Facility i &rarr; Customer j)</h2><div class="dot" style="background:var(--cyan)"></div></div>
+      <div class="card-body" id="cplm-cost-wrap"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:18px;">
+      <div class="card">
+        <div class="card-head"><h2>Customer Demand D<sub>j</sub></h2><div class="dot" style="background:var(--gold);box-shadow:0 0 6px var(--gold)"></div></div>
+        <div class="card-body" id="cplm-demand-wrap"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Facility Data — f<sub>i</sub> (fixed cost) &amp; Cap<sub>i</sub> (capacity)</h2><div class="dot" style="background:var(--green);box-shadow:0 0 6px var(--green)"></div></div>
+        <div class="card-body" id="cplm-facility-wrap"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Action Bar -->
+<div class="abar f4">
+  <button class="btn btn-gen" onclick="generateFormulation()">&#8801; Generate Formulation</button>
+  <div class="sep"></div>
+  <button class="btn btn-viz" onclick="drawNetwork()">&#9675; Draw Network</button>
+  <div class="sep"></div>
+  <button class="btn btn-solve" onclick="solveMILP()">&#9654;&#9654; Solve MILP</button>
+  <div class="sep"></div>
+  <button class="btn btn-dl" onclick="downloadFormulation()">&#8595; Download TXT</button>
+  <span class="hint">&#9656; Select problem &rarr; Generate &rarr; Solve</span>
+</div>
+
+<!-- Output grid -->
+<div class="mg f4">
+  <div class="card">
+    <div class="card-head"><h2>Mathematical Formulation</h2><div class="dot" style="background:var(--gold);box-shadow:0 0 6px var(--gold)"></div></div>
+    <div id="output">
+      <div class="out-empty"><span class="big-sym">&#931;</span>Click &ldquo;Generate Formulation&rdquo;<br>to display the MILP model</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head"><h2>Network Diagram</h2><div class="dot" style="background:var(--green);box-shadow:0 0 6px var(--green)"></div></div>
+    <div id="viz-container">
+      <div class="viz-empty" id="viz-empty"><span class="big-icon">&#9671;</span>Click &ldquo;Draw Network&rdquo; to visualize<br>the facility&ndash;demand graph</div>
+    </div>
+  </div>
+</div>
+
+<!-- Solver Output -->
+<div class="card f4" id="solver-card" style="margin-bottom:20px;display:none;">
+  <div class="card-head"><h2>&#9654;&#9654; Optimal Solution</h2><div class="dot" style="background:var(--purple);box-shadow:0 0 6px var(--purple)"></div></div>
+  <div id="solver-output"></div>
+</div>
+
+</div><!-- /wrap -->
+<div id="toast">&#10003; Done</div>
+<footer>
+  <span>X<sub>ij</sub></span> = flow from facility j to demand i &nbsp;&middot;&nbsp;
+  <span>Y<sub>j</sub></span> &isin; {0,1} = binary open indicator &nbsp;&middot;&nbsp;
+  <span>Cap<sub>j</sub></span> = individual facility capacity
+</footer>
+<script>
+// ── Helpers ──
+const gf=(id,def)=>{const el=document.getElementById(id);if(!el)return def||0;const v=parseFloat(el.value);return isNaN(v)?(def||0):v};
+const gi=(id,def)=>{const el=document.getElementById(id);if(!el)return def||1;const v=parseInt(el.value,10);return isNaN(v)?(def||1):v};
+const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+
+// ── Book problem defaults (all zeros) ──
+const BOOK_DEFAULTS = {
+  costs: [[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]],
+  demand: [0,0,0,0,0],
+  fixedLow:  [0,0,0,0,0],
+  fixedHigh: [0,0,0,0,0]
+};
+
+// Current problem mode
+let currentMode = 'custom';
+
+function switchProblem(){
+  currentMode = document.getElementById('problemSelect').value;
+  document.getElementById('panel-custom').style.display = currentMode==='custom' ? '' : 'none';
+  document.getElementById('panel-book').style.display   = currentMode==='book'   ? '' : 'none';
+  document.getElementById('panel-cplm').style.display   = currentMode==='cplm'   ? '' : 'none';
+  const descs={
+    custom:'Enter your own demand points, facilities, transportation costs, fixed costs, and capacities. Fully editable.',
+    book:'Dual Facility problem: each facility (F1, F2…) can open at LOW or HIGH capacity, or stay closed. Set number of facilities & demand points, capacities, and all costs freely.',
+    cplm:'Capacitated Plant Location Model with Single Sourcing: each customer (D1..Dm) is assigned to exactly one open facility (F1..Fn). x_ij ∈ {0,1}, y_i ∈ {0,1}.'
+  };
+  document.getElementById('probDesc').textContent = descs[currentMode];
+  document.getElementById('output').innerHTML='<div class="out-empty"><span class="big-sym">&#931;</span>Click &ldquo;Generate Formulation&rdquo;<br>to display the MILP model</div>';
+  document.getElementById('viz-container').innerHTML='<div class="viz-empty"><span class="big-icon">&#9671;</span>Click &ldquo;Draw Network&rdquo; to visualize<br>the facility&ndash;demand graph</div>';
+  document.getElementById('solver-card').style.display='none';
+  if(currentMode==='book') buildBookTable();
+  if(currentMode==='cplm') buildCplmTable();
+}
+
+function buildBookTable(){
+  const d=clamp(gi('bookDemandCount',5),1,10);
+  const f=clamp(gi('bookFacilityCount',5),1,10);
+  document.getElementById('bookDemandCount').value=d;
+  document.getElementById('bookFacilityCount').value=f;
+
+  // Default per-facility capacities (zero)
+  const defCapL=[0,0,0,0,0];
+  const defCapH=[0,0,0,0,0];
+
+  // Build cost matrix table: facilities as rows (F1..Ff), demand as cols (D1..Dd)
+  let html='<table><thead><tr>';
+  html+='<th style="min-width:60px;">F \\ D</th>';
+  for(let i=1;i<=d;i++) html+='<th style="color:var(--gold)">D'+i+'</th>';
+  html+='<th style="color:var(--gold);min-width:100px;">Fixed Cost<br><span style="color:rgba(240,192,96,.6);font-size:.6rem;">LOW</span></th>';
+  html+='<th style="color:var(--gold);min-width:80px;">Cap<br><span style="color:rgba(240,192,96,.6);font-size:.6rem;">LOW</span></th>';
+  html+='<th style="color:var(--purple);min-width:100px;">Fixed Cost<br><span style="color:rgba(192,132,252,.6);font-size:.6rem;">HIGH</span></th>';
+  html+='<th style="color:var(--purple);min-width:80px;">Cap<br><span style="color:rgba(192,132,252,.6);font-size:.6rem;">HIGH</span></th>';
+  html+='</tr></thead><tbody>';
+
+  for(let j=1;j<=f;j++){
+    html+='<tr><td class="label">F'+j+'</td>';
+    for(let i=1;i<=d;i++){
+      const defC = (j<=5&&i<=5) ? BOOK_DEFAULTS.costs[j-1][i-1] : 0;
+      html+='<td><input type="number" id="bc_'+(j-1)+'_'+(i-1)+'" value="'+defC+'" step="1" min="0" style="width:68px"></td>';
+    }
+    const defFL = j<=5 ? BOOK_DEFAULTS.fixedLow[j-1]  : 0;
+    const defFH = j<=5 ? BOOK_DEFAULTS.fixedHigh[j-1] : 0;
+    const defCL = j<=5 ? defCapL[j-1] : 0;
+    const defCH = j<=5 ? defCapH[j-1] : 0;
+    html+='<td><input type="number" id="bfl_'+(j-1)+'" value="'+defFL+'" step="100" min="0" style="width:90px"></td>';
+    html+='<td><input type="number" id="bcapL_'+(j-1)+'" value="'+defCL+'" step="1" min="1" style="width:72px"></td>';
+    html+='<td><input type="number" id="bfh_'+(j-1)+'" value="'+defFH+'" step="100" min="0" style="width:90px"></td>';
+    html+='<td><input type="number" id="bcapH_'+(j-1)+'" value="'+defCH+'" step="1" min="1" style="width:72px"></td>';
+    html+='</tr>';
+  }
+  // Demand row
+  html+='</tbody><tfoot><tr><td class="label-gold">Demand</td>';
+  for(let i=1;i<=d;i++){
+    const defD = i<=5 ? BOOK_DEFAULTS.demand[i-1] : 0;
+    html+='<td><input type="number" id="bd_'+(i-1)+'" value="'+defD+'" step="1" min="1" style="width:68px"></td>';
+  }
+  html+='<td colspan="4"></td></tr></tfoot></table>';
+  document.getElementById('book-table-wrap').innerHTML=html;
+  document.getElementById('viz-container').innerHTML='<div class="viz-empty"><span class="big-icon">&#9671;</span>Click &ldquo;Draw Network&rdquo; to visualize<br>the facility&ndash;demand graph</div>';
+}
+
+// ── Read model for current problem ──
+function readModel(){
+  if(currentMode==='book') return readBookModel();
+  if(currentMode==='cplm') return readCplmModel();
+  const d=clamp(gi('demandCount',3),1,10), f=clamp(gi('facilityCount',3),1,10);
+  const C=[],demand=[],fixedCost=[],cap=[];
+  for(let i=1;i<=d;i++){C[i]=[];for(let j=1;j<=f;j++) C[i][j]=gf('c_'+i+'_'+j,10);}
+  for(let i=1;i<=d;i++) demand[i]=Math.max(gf('demand_'+i,100),1);
+  for(let j=1;j<=f;j++){fixedCost[j]=Math.max(gf('fixed_'+j,100),0);cap[j]=Math.max(gf('cap_'+j,300),1);}
+  return{mode:'custom',d,f,C,demand,fixedCost,cap};
+}
+
+function readBookModel(){
+  const d=clamp(gi('bookDemandCount',5),1,10);
+  const f=clamp(gi('bookFacilityCount',5),1,10);
+  const C=[],demand=[],fixedLow=[],fixedHigh=[],capLow=[],capHigh=[];
+  for(let i=1;i<=d;i++){
+    C[i]=[];
+    for(let j=1;j<=f;j++) C[i][j]=gf('bc_'+(j-1)+'_'+(i-1),10);
+  }
+  for(let i=1;i<=d;i++) demand[i]=Math.max(gf('bd_'+(i-1),10),1);
+  for(let j=1;j<=f;j++){
+    fixedLow[j]=Math.max(gf('bfl_'+(j-1),1000),0);
+    fixedHigh[j]=Math.max(gf('bfh_'+(j-1),2000),0);
+    capLow[j]=Math.max(gi('bcapL_'+(j-1),10),1);
+    capHigh[j]=Math.max(gi('bcapH_'+(j-1),20),1);
+  }
+  const facilityNames=Array.from({length:f},(_,j)=>'F'+(j+1));
+  const demandNames=Array.from({length:d},(_,i)=>'D'+(i+1));
+  return{mode:'book',d,f,C,demand,fixedLow,fixedHigh,capLow,capHigh,facilityNames,demandNames};
+}
+
+// ── Custom: Build Tables ──
+function buildTables(){
+  let d=clamp(gi('demandCount',3),1,10), f=clamp(gi('facilityCount',3),1,10);
+  document.getElementById('demandCount').value=d; document.getElementById('facilityCount').value=f;
+  let ch='<table><thead><tr><th>F \\ D</th>';
+  for(let i=1;i<=d;i++) ch+='<th>D'+i+'</th>';
+  ch+='</tr></thead><tbody>';
+  for(let j=1;j<=f;j++){
+    ch+='<tr><td class="label">F'+j+'</td>';
+    for(let i=1;i<=d;i++){let v=0;ch+='<td><input type="number" id="c_'+i+'_'+j+'" value="'+v+'" step="1" min="0" style="width:80px"></td>';}
+    ch+='</tr>';
+  }
+  ch+='</tbody></table>';
+  document.getElementById('cost-table-wrap').innerHTML=ch;
+  let dh='<table><thead><tr><th>Point</th><th>Demand (b<sub>i</sub>)</th></tr></thead><tbody>';
+  for(let i=1;i<=d;i++){let v=0;dh+='<tr><td class="label">D'+i+'</td><td><input type="number" id="demand_'+i+'" value="'+v+'" step="10" min="1"></td></tr>';}
+  dh+='</tbody></table>';
+  document.getElementById('demand-table-wrap').innerHTML=dh;
+  let fh='<table><thead><tr><th>Facility</th><th>Fixed Cost (f<sub>j</sub>)</th><th>Capacity (Cap<sub>j</sub>)</th></tr></thead><tbody>';
+  for(let j=1;j<=f;j++){let fc=0,cap=0;fh+='<tr><td class="label">F'+j+'</td><td><input type="number" id="fixed_'+j+'" value="'+fc+'" step="10" min="0"></td><td><input type="number" id="cap_'+j+'" value="'+cap+'" step="25" min="1"></td></tr>';}
+  fh+='</tbody></table>';
+  document.getElementById('facility-table-wrap').innerHTML=fh;
+  document.getElementById('viz-container').innerHTML='<div class="viz-empty"><span class="big-icon">&#9671;</span>Click &ldquo;Draw Network&rdquo; to visualize<br>the facility&ndash;demand graph</div>';
+}
+
+// ── Generate Formulation ──
+function generateFormulation(){
+  const m=readModel();
+  if(m.mode==='cplm'){generateCplmFormulation(m);return;}
+  let html='';
+  if(m.mode==='book'){
+    const{d,f,C,demand,fixedLow,fixedHigh,capLow,capHigh,facilityNames,demandNames}=m;
+    html+='<h3>Objective Function &mdash; Minimize Total Cost</h3>';
+    let terms=[];
+    for(let i=1;i<=d;i++) for(let j=1;j<=f;j++) terms.push(C[i][j]+'&middot;X<sub>'+i+j+'</sub>');
+    for(let j=1;j<=f;j++) terms.push(fixedLow[j]+'&middot;Y<sup>L</sup><sub>'+j+'</sub>');
+    for(let j=1;j<=f;j++) terms.push(fixedHigh[j]+'&middot;Y<sup>H</sup><sub>'+j+'</sub>');
+    html+='<div class="blk"><div class="obj">min Z = '+terms.join(' + ')+'</div></div>';
+    html+='<h3>Subject To</h3>';
+    html+='<div style="font-size:.63rem;font-weight:700;color:var(--cyan);margin-bottom:6px;letter-spacing:1.5px;">&#9472;&#9472; DEMAND CONSTRAINTS</div>';
+    html+='<div class="blk"><div class="cl">';
+    for(let i=1;i<=d;i++){let p=[];for(let j=1;j<=f;j++) p.push('X<sub>'+i+j+'</sub>');html+='<div>'+p.join(' + ')+' = '+demand[i]+'&nbsp;&nbsp;&forall;i='+i+'('+demandNames[i-1]+')</div>';}
+    html+='</div></div>';
+    html+='<div style="font-size:.63rem;font-weight:700;color:var(--gold);margin-top:12px;margin-bottom:6px;letter-spacing:1.5px;">&#9472;&#9472; CAPACITY CONSTRAINTS</div>';
+    html+='<div class="blk cap"><div class="cl">';
+    for(let j=1;j<=f;j++){let p=[];for(let i=1;i<=d;i++) p.push('X<sub>'+i+j+'</sub>');html+='<div>'+p.join(' + ')+' &le; '+capLow[j]+'&middot;Y<sup>L</sup><sub>'+j+'</sub> + '+capHigh[j]+'&middot;Y<sup>H</sup><sub>'+j+'</sub>&nbsp;&nbsp;&forall;j='+j+'</div>';}
+    html+='</div></div>';
+    html+='<div style="font-size:.63rem;font-weight:700;color:var(--purple);margin-top:12px;margin-bottom:6px;letter-spacing:1.5px;">&#9472;&#9472; CAPACITY LEVEL CHOICE </div>';
+    html+='<div class="blk" style="border-left-color:var(--purple)"><div class="cl">';
+    for(let j=1;j<=f;j++) html+='<div>Y<sup>L</sup><sub>'+j+'</sub> + Y<sup>H</sup><sub>'+j+'</sub> &le; 1&nbsp;&nbsp;&forall;j='+j+'</div>';
+    html+='</div></div>';
+    html+='<div style="font-size:.63rem;font-weight:700;color:var(--green);margin-top:12px;margin-bottom:6px;letter-spacing:1.5px;">&#9472;&#9472; NON-NEGATIVITY CONSTRAINTS</div>';
+    html+='<div class="blk var"><div class="cl">';
+    for(let i=1;i<=d;i++) for(let j=1;j<=f;j++) html+='<div>X<sub>'+i+j+'</sub> &ge; 0</div>';
+    for(let j=1;j<=f;j++) html+='<div>Y<sup>L</sup><sub>'+j+'</sub>, Y<sup>H</sup><sub>'+j+'</sub> &isin; {0,1}</div>';
+    html+='</div></div>';
+  } else {
+    const{d,f,C,demand,fixedCost,cap}=m;
+    html+='<h3>Objective Function &mdash; Minimize Total Cost</h3>';
+    let terms=[];
+    for(let i=1;i<=d;i++) for(let j=1;j<=f;j++) terms.push(C[i][j]+'&middot;X<sub>'+i+j+'</sub>');
+    for(let j=1;j<=f;j++) if(fixedCost[j]) terms.push(fixedCost[j]+'&middot;Y<sub>'+j+'</sub>');
+    html+='<div class="blk"><div class="obj">min Z = '+terms.join(' + ')+'</div></div>';
+    html+='<h3>Subject To</h3>';
+    html+='<div style="font-size:.63rem;font-weight:700;color:var(--cyan);margin-bottom:6px;letter-spacing:1.5px;">&#9472;&#9472; DEMAND CONSTRAINTS</div>';
+    html+='<div class="blk"><div class="cl">';
+    for(let i=1;i<=d;i++){let p=[];for(let j=1;j<=f;j++) p.push('X<sub>'+i+j+'</sub>');html+='<div>'+p.join(' + ')+' = '+demand[i]+'&nbsp;&nbsp;&forall;i='+i+'</div>';}
+    html+='</div></div>';
+    html+='<div style="font-size:.63rem;font-weight:700;color:var(--gold);margin-top:12px;margin-bottom:6px;letter-spacing:1.5px;">&#9472;&#9472; CAPACITY CONSTRAINTS</div>';
+    html+='<div class="blk cap"><div class="cl">';
+    for(let j=1;j<=f;j++){let p=[];for(let i=1;i<=d;i++) p.push('X<sub>'+i+j+'</sub>');html+='<div>'+p.join(' + ')+' &le; '+cap[j]+'&middot;Y<sub>'+j+'</sub>&nbsp;&nbsp;&forall;j='+j+'</div>';}
+    html+='</div></div>';
+    html+='<div style="font-size:.63rem;font-weight:700;color:var(--green);margin-top:12px;margin-bottom:6px;letter-spacing:1.5px;">&#9472;&#9472; NON-NEGATIVITY CONSTRAINTS</div>';
+    html+='<div class="blk var"><div class="cl">';
+    for(let i=1;i<=d;i++) for(let j=1;j<=f;j++) html+='<div>X<sub>'+i+j+'</sub> &ge; 0</div>';
+    for(let j=1;j<=f;j++) html+='<div>Y<sub>'+j+'</sub> &isin; {0,1}</div>';
+    html+='</div></div>';
+    html+='<details><summary>&#9656; Data Snapshot</summary><div>Demands: '+demand.slice(1).join(', ')+'<br>Fixed Costs: '+fixedCost.slice(1).join(', ')+'<br>Capacities: '+cap.slice(1).join(', ')+'</div></details>';
+  }
+  document.getElementById('output').innerHTML=html;
+}
+
+// ── Draw Network ──
+function drawNetwork(){
+  const m=readModel();
+  if(m.mode==='cplm'){drawNetworkCplm(m);return;}
+  const{d,f,C,demand}=m;
+  const fixedCost = m.mode==='book' ? m.fixedHigh : m.fixedCost; // use high for display in book
+  const cap = m.mode==='book' ? Array.from({length:f+1},(_,j)=>j===0?0:m.capHigh[j]) : m.cap;
+  const fnames = m.mode==='book' ? m.facilityNames : Array.from({length:f},(_,j)=>'F'+(j+1));
+  const dnames = m.mode==='book' ? m.demandNames   : Array.from({length:d},(_,i)=>'D'+(i+1));
+
+  const W=640,PAD=40;
+  const numRows=Math.max(d,f);
+  const rowH=Math.max(72,Math.floor(400/numRows));
+  const totalH=numRows*rowH+PAD*2+40;
+  const colF=110,colD=W-110;
+  function yF(j){return PAD+20+(j-0.5)*(totalH-PAD*2-40)/f}
+  function yD(i){return PAD+20+(i-0.5)*(totalH-PAD*2-40)/d}
+  let allC=[];for(let i=1;i<=d;i++) for(let j=1;j<=f;j++) allC.push(C[i][j]);
+  const minC=Math.min(...allC),maxC=Math.max(...allC),cRange=maxC-minC||1;
+  const maxCap=Math.max(...cap.slice(1)),maxDem=Math.max(...demand.slice(1));
+  function edgeCol(c){const t=(c-minC)/cRange;if(t<0.5){const s=t*2;return'rgb('+Math.round(56+s*(240-56))+','+Math.round(217+s*(192-217))+','+Math.round(200+s*(96-200))+')';}else{const s=(t-0.5)*2;return'rgb('+Math.round(240+s*(255-240))+','+Math.round(192+s*(80-192))+','+Math.round(96+s*(80-96))+')';}}
+  function edgeW(c){const t=(c-minC)/cRange;return(0.8+t*2.4).toFixed(2)}
+  function edgeOp(c){const t=(c-minC)/cRange;return(0.42+t*0.42).toFixed(2)}
+
+  let s='<svg viewBox="0 0 '+W+' '+totalH+'" width="100%" style="display:block;background:#111e2d;" xmlns="http://www.w3.org/2000/svg">';
+  s+='<g opacity="0.055">';
+  for(let x=0;x<=W;x+=40) s+='<line x1="'+x+'" y1="0" x2="'+x+'" y2="'+totalH+'" stroke="#63a1dc" stroke-width="0.5"/>';
+  for(let y=0;y<=totalH;y+=40) s+='<line x1="0" y1="'+y+'" x2="'+W+'" y2="'+y+'" stroke="#63a1dc" stroke-width="0.5"/>';
+  s+='</g>';
+  s+='<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>'
+    +'<filter id="gc" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
+    +'<filter id="gd" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';
+  s+='<text x="'+colF+'" y="18" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="8.5" font-weight="700" fill="#38d9c8" letter-spacing="2" opacity="0.75">FACILITIES</text>';
+  s+='<text x="'+colD+'" y="18" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="8.5" font-weight="700" fill="#f0c060" letter-spacing="2" opacity="0.75">DEMAND</text>';
+  s+='<line x1="'+colF+'" y1="26" x2="'+colF+'" y2="'+(totalH-32)+'" stroke="#38d9c8" stroke-width="0.5" stroke-dasharray="3 5" opacity="0.1"/>';
+  s+='<line x1="'+colD+'" y1="26" x2="'+colD+'" y2="'+(totalH-32)+'" stroke="#f0c060" stroke-width="0.5" stroke-dasharray="3 5" opacity="0.1"/>';
+  const totalEdges=d*f, showLabels=totalEdges<=20;
+  let edgeIdx=0;
+  for(let i=1;i<=d;i++) for(let j=1;j<=f;j++){
+    const x1=colF+26,y1=yF(j),x2=colD-26,y2=yD(i);
+    const cost=C[i][j],col=edgeCol(cost),w=edgeW(cost),op=edgeOp(cost);
+    const mx=(x1+x2)/2,my=(y1+y2)/2,curve=(y2-y1)*0.06;
+    s+='<path d="M'+x1+' '+y1+' Q'+mx+' '+(my-curve)+' '+x2+' '+y2+'" fill="none" stroke="'+col+'" stroke-width="'+w+'" opacity="'+op+'" marker-end="url(#ar)" stroke-linecap="round"/>';
+    if(showLabels){
+      const tArr=[0.28,0.58,0.38,0.68,0.32,0.62,0.45,0.55];
+      const t=tArr[edgeIdx%tArr.length];
+      const Pcx=mx,Pcy=my-curve;
+      const bx=(1-t)*(1-t)*x1+2*t*(1-t)*Pcx+t*t*x2;
+      const by=(1-t)*(1-t)*y1+2*t*(1-t)*Pcy+t*t*y2;
+      const sideOff=(edgeIdx%2===0)?-11:11;
+      const dx=2*(1-t)*(Pcx-x1)+2*t*(x2-Pcx),dy=2*(1-t)*(Pcy-y1)+2*t*(y2-Pcy);
+      const len=Math.sqrt(dx*dx+dy*dy)||1;
+      const nx=-dy/len,ny=dx/len;
+      const lx=bx+nx*sideOff,ly=by+ny*sideOff;
+      const fs=totalEdges<=9?8.5:7.5,pw=totalEdges<=9?24:20,ph=totalEdges<=9?14:12;
+      s+='<rect x="'+(lx-pw/2)+'" y="'+(ly-ph/2)+'" width="'+pw+'" height="'+ph+'" rx="3" fill="#162538" stroke="'+col+'" stroke-width="0.6" opacity="0.93"/>';
+      s+='<text x="'+lx+'" y="'+ly+'" text-anchor="middle" dominant-baseline="central" font-family="JetBrains Mono,monospace" font-size="'+fs+'" fill="'+col+'" font-weight="700">'+cost+'</text>';
+    }
+    edgeIdx++;
+  }
+  for(let j=1;j<=f;j++){
+    const cx=colF,cy=yF(j),r=Math.round(18+(cap[j]/maxCap)*9);
+    s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+(r+8)+'" fill="none" stroke="#38d9c8" stroke-width="1" opacity="0.1"/>';
+    s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+(r+4)+'" fill="none" stroke="#38d9c8" stroke-width="0.8" opacity="0.16"/>';
+    s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="#0e2318" stroke="#38d9c8" stroke-width="1.5" filter="url(#gc)"/>';
+    const bw=16,bh=11,bx=cx-bw/2,by=cy-bh/2+2;
+    s+='<rect x="'+bx+'" y="'+by+'" width="'+bw+'" height="'+bh+'" rx="2" fill="none" stroke="#38d9c8" stroke-width="1.1" opacity="0.85"/>';
+    s+='<rect x="'+(cx-2.5)+'" y="'+(by-6)+'" width="4" height="7" rx="1" fill="none" stroke="#38d9c8" stroke-width="1" opacity="0.85"/>';
+    s+='<line x1="'+(bx+4)+'" y1="'+(by+3)+'" x2="'+(bx+4)+'" y2="'+(by+bh)+'" stroke="#38d9c8" stroke-width="0.8" opacity="0.65"/>';
+    s+='<line x1="'+(bx+9)+'" y1="'+(by+3)+'" x2="'+(bx+9)+'" y2="'+(by+bh)+'" stroke="#38d9c8" stroke-width="0.8" opacity="0.65"/>';
+    // Label: short name
+    const fname = fnames[j-1].length>6 ? fnames[j-1].substring(0,6) : fnames[j-1];
+    s+='<text x="'+cx+'" y="'+(cy+r+13)+'" text-anchor="middle" dominant-baseline="central" font-family="JetBrains Mono,monospace" font-size="'+(m.mode==='book'?7.5:10.5)+'" font-weight="700" fill="#38d9c8">'+fname+'</text>';
+    s+='<text x="'+(cx-r-10)+'" y="'+(cy-7)+'" text-anchor="end" dominant-baseline="central" font-family="JetBrains Mono,monospace" font-size="7.5" fill="#38d9c8" opacity="0.85">'+(m.mode==='book'?'fL='+m.fixedLow[j]:'f='+fixedCost[j])+'</text>';
+    s+='<text x="'+(cx-r-10)+'" y="'+(cy+7)+'" text-anchor="end" dominant-baseline="central" font-family="JetBrains Mono,monospace" font-size="7.5" fill="#2a8060" opacity="0.85">'+(m.mode==='book'?'fH='+m.fixedHigh[j]:'cap='+cap[j])+'</text>';
+  }
+  for(let i=1;i<=d;i++){
+    const cx=colD,cy=yD(i),r=Math.round(17+(demand[i]/maxDem)*9);
+    s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+(r+8)+'" fill="none" stroke="#f0c060" stroke-width="1" opacity="0.1"/>';
+    s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+(r+4)+'" fill="none" stroke="#f0c060" stroke-width="0.8" opacity="0.16"/>';
+    s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="#1a1000" stroke="#f0c060" stroke-width="1.5" filter="url(#gd)"/>';
+    const bw=14,bh=12,bx=cx-bw/2,by=cy-bh/2+1;
+    s+='<rect x="'+bx+'" y="'+by+'" width="'+bw+'" height="'+bh+'" rx="1.5" fill="none" stroke="#f0c060" stroke-width="1.1" opacity="0.85"/>';
+    for(let wi=0;wi<2;wi++) for(let wj=0;wj<2;wj++) s+='<rect x="'+(bx+3+wi*5)+'" y="'+(by+3+wj*4)+'" width="2.5" height="2.5" rx="0.5" fill="#f0c060" opacity="0.45"/>';
+    const dname = dnames[i-1].length>6 ? dnames[i-1].substring(0,6) : dnames[i-1];
+    s+='<text x="'+cx+'" y="'+(cy+r+13)+'" text-anchor="middle" dominant-baseline="central" font-family="JetBrains Mono,monospace" font-size="'+(m.mode==='book'?7.5:10.5)+'" font-weight="700" fill="#f0c060">'+dname+'</text>';
+    s+='<text x="'+(cx+r+10)+'" y="'+cy+'" text-anchor="start" dominant-baseline="central" font-family="JetBrains Mono,monospace" font-size="7.5" fill="#f0c060" opacity="0.85">b='+demand[i]+'</text>';
+  }
+  if(!showLabels) s+='<text x="'+(W/2)+'" y="'+(totalH-14)+'" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="8" fill="#5580a0" opacity="0.8">cost labels hidden ('+totalEdges+' edges) — see matrix table above</text>';
+  if(minC!==maxC){
+    const lx=W/2-90,ly=showLabels?totalH-13:totalH-30,steps=24,sw=72;
+    for(let k=0;k<steps;k++){const t=k/steps,col=edgeCol(minC+t*cRange),sx=lx+14+k*(sw/steps);s+='<line x1="'+sx+'" y1="'+ly+'" x2="'+(sx+sw/steps+1)+'" y2="'+ly+'" stroke="'+col+'" stroke-width="2.5"/>';}
+    s+='<text x="'+(lx+14)+'" y="'+(ly+9)+'" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="7" fill="#38d9c8">'+minC+'</text>';
+    s+='<text x="'+(lx+14+sw)+'" y="'+(ly+9)+'" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="7" fill="#ff8080">'+maxC+'</text>';
+    s+='<text x="'+(lx+14+sw/2)+'" y="'+(ly+9)+'" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="7" fill="#4a7080">cost</text>';
+  }
+  s+='</svg>';
+  const leg='<div class="viz-legend"><div class="leg-item"><div class="leg-dot" style="background:#38d9c8;box-shadow:0 0 5px #38d9c8"></div> Facility</div><div class="leg-item"><div class="leg-dot" style="background:#f0c060;box-shadow:0 0 5px #f0c060"></div> Demand</div><div class="leg-item" style="gap:8px;"><svg width="32" height="8"><defs><linearGradient id="lgg" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#38d9c8"/><stop offset="50%" stop-color="#f0c060"/><stop offset="100%" stop-color="#ff6b6b"/></linearGradient></defs><line x1="0" y1="4" x2="32" y2="4" stroke="url(#lgg)" stroke-width="2.5"/></svg> edge = C<sub>ij</sub></div></div>';
+  document.getElementById('viz-container').innerHTML=s+leg;
+}
+
+// ── Draw Network for CPLM ──
+function drawNetworkCplm(m2){
+  const{n,m,C,D,f,K}=m2;
+  const W=640,PAD=40;
+  const numRows=Math.max(n,m);
+  const rowH=Math.max(72,Math.floor(400/numRows));
+  const totalH=numRows*rowH+PAD*2+40;
+  const colF=110,colD=W-110;
+  function yF(i){return PAD+20+(i-0.5)*(totalH-PAD*2-40)/n;}
+  function yD(j){return PAD+20+(j-0.5)*(totalH-PAD*2-40)/m;}
+  let allC=[];for(let i=1;i<=n;i++) for(let j=1;j<=m;j++) allC.push(C[i][j]);
+  const minC=Math.min(...allC),maxC=Math.max(...allC),cRange=maxC-minC||1;
+  const maxK=Math.max(...K.slice(1)),maxD=Math.max(...D.slice(1));
+  function edgeCol(c){const t=(c-minC)/cRange;if(t<0.5){const s=t*2;return'rgb('+Math.round(56+s*(240-56))+','+Math.round(217+s*(192-217))+','+Math.round(200+s*(96-200))+')';}else{const s=(t-0.5)*2;return'rgb('+Math.round(240+s*(255-240))+','+Math.round(192+s*(80-192))+','+Math.round(96+s*(80-96))+')';}}
+  function edgeW(c){const t=(c-minC)/cRange;return(0.8+t*2.4).toFixed(2);}
+  function edgeOp(c){const t=(c-minC)/cRange;return(0.42+t*0.42).toFixed(2);}
+  let s='<svg viewBox="0 0 '+W+' '+totalH+'" width="100%" style="display:block;background:#111e2d;" xmlns="http://www.w3.org/2000/svg">';
+  s+='<g opacity="0.055">';
+  for(let x=0;x<=W;x+=40) s+='<line x1="'+x+'" y1="0" x2="'+x+'" y2="'+totalH+'" stroke="#63a1dc" stroke-width="0.5"/>';
+  for(let y=0;y<=totalH;y+=40) s+='<line x1="0" y1="'+y+'" x2="'+W+'" y2="'+y+'" stroke="#63a1dc" stroke-width="0.5"/>';
+  s+='</g>';
+  s+='<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>'
+    +'<filter id="gc" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
+    +'<filter id="gd" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';
+  s+='<text x="'+colF+'" y="18" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="8.5" font-weight="700" fill="#38d9c8" letter-spacing="2" opacity="0.75">FACILITIES</text>';
+  s+='<text x="'+colD+'" y="18" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="8.5" font-weight="700" fill="#f0c060" letter-spacing="2" opacity="0.75">CUSTOMERS</text>';
+  s+='<line x1="'+colF+'" y1="26" x2="'+colF+'" y2="'+(totalH-32)+'" stroke="#38d9c8" stroke-width="0.5" stroke-dasharray="3 5" opacity="0.1"/>';
+  s+='<line x1="'+colD+'" y1="26" x2="'+colD+'" y2="'+(totalH-32)+'" stroke="#f0c060" stroke-width="0.5" stroke-dasharray="3 5" opacity="0.1"/>';
+  const totalEdges=n*m, showLabels=totalEdges<=20;
+  let edgeIdx=0;
+  for(let i=1;i<=n;i++) for(let j=1;j<=m;j++){
+    const x1=colF+26,y1=yF(i),x2=colD-26,y2=yD(j);
+    const cost=C[i][j],col=edgeCol(cost),w=edgeW(cost),op=edgeOp(cost);
+    const mx=(x1+x2)/2,my=(y1+y2)/2,curve=(y2-y1)*0.06;
+    s+='<path d="M'+x1+' '+y1+' Q'+mx+' '+(my-curve)+' '+x2+' '+y2+'" fill="none" stroke="'+col+'" stroke-width="'+w+'" opacity="'+op+'" marker-end="url(#ar)" stroke-linecap="round"/>';
+    if(showLabels){
+      const tArr=[0.28,0.58,0.38,0.68,0.32,0.62,0.45,0.55];
+      const t=tArr[edgeIdx%tArr.length];
+      const Pcx=mx,Pcy=my-curve;
+      const bx=(1-t)*(1-t)*x1+2*t*(1-t)*Pcx+t*t*x2;
+      const by=(1-t)*(1-t)*y1+2*t*(1-t)*Pcy+t*t*y2;
+      const sideOff=(edgeIdx%2===0)?-11:11;
+      const dx=2*(1-t)*(Pcx-x1)+2*t*(x2-Pcx),dy=2*(1-t)*(Pcy-y1)+2*t*(y2-Pcy);
+      const len=Math.sqrt(dx*dx+dy*dy)||1;
+      const nx=-dy/len,ny=dx/len;
+      const lx=bx+nx*sideOff,ly=by+ny*sideOff;
+      const fs=totalEdges<=9?8.5:7.5,pw=totalEdges<=9?24:20,ph=totalEdges<=9?14:12;
+      s+='<rect x="'+(lx-pw/2)+'" y="'+(ly-ph/2)+'" width="'+pw+'" height="'+ph+'" rx="3" fill="#162538" stroke="'+col+'" stroke-width="0.6" opacity="0.93"/>';
+      s+='<text x="'+lx+'" y="'+ly+'" text-anchor="middle" dominant-baseline="central" font-family="JetBrains Mono,monospace" font-size="'+fs+'" fill="'+col+'" font-weight="700">'+cost+'</text>';
+    }
+    edgeIdx++;
+  }
+  // Facility nodes
+  for(let i=1;i<=n;i++){
+    const cx=colF,cy=yF(i),r=Math.round(18+(K[i]/maxK)*9);
+    s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+(r+8)+'" fill="none" stroke="#38d9c8" stroke-width="1" opacity="0.1"/>';
+    s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+(r+4)+'" fill="none" stroke="#38d9c8" stroke-width="0.8" opacity="0.16"/>';
+    s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="#0e2318" stroke="#38d9c8" stroke-width="1.5" filter="url(#gc)"/>';
+    const bw=16,bh=11,bx=cx-bw/2,by=cy-bh/2+2;
+    s+='<rect x="'+bx+'" y="'+by+'" width="'+bw+'" height="'+bh+'" rx="2" fill="none" stroke="#38d9c8" stroke-width="1.1" opacity="0.85"/>';
+    s+='<rect x="'+(cx-2.5)+'" y="'+(by-6)+'" width="4" height="7" rx="1" fill="none" stroke="#38d9c8" stroke-width="1" opacity="0.85"/>';
+    s+='<line x1="'+(bx+4)+'" y1="'+(by+3)+'" x2="'+(bx+4)+'" y2="'+(by+bh)+'" stroke="#38d9c8" stroke-width="0.8" opacity="0.65"/>';
+    s+='<line x1="'+(bx+9)+'" y1="'+(by+3)+'" x2="'+(bx+9)+'" y2="'+(by+bh)+'" stroke="#38d9c8" stroke-width="0.8" opacity="0.65"/>';
+    s+='<text x="'+cx+'" y="'+(cy+r+13)+'" text-anchor="middle" dominant-baseline="central" font-family="JetBrains Mono,monospace" font-size="10.5" font-weight="700" fill="#38d9c8">F'+i+'</text>';
+    s+='<text x="'+(cx-r-10)+'" y="'+(cy-7)+'" text-anchor="end" dominant-baseline="central" font-family="JetBrains Mono,monospace" font-size="7.5" fill="#38d9c8" opacity="0.85">f='+f[i]+'</text>';
+    s+='<text x="'+(cx-r-10)+'" y="'+(cy+7)+'" text-anchor="end" dominant-baseline="central" font-family="JetBrains Mono,monospace" font-size="7.5" fill="#2a8060" opacity="0.85">Cap='+K[i]+'</text>';
+  }
+  // Customer nodes
+  for(let j=1;j<=m;j++){
+    const cx=colD,cy=yD(j),r=Math.round(17+(D[j]/maxD)*9);
+    s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+(r+8)+'" fill="none" stroke="#f0c060" stroke-width="1" opacity="0.1"/>';
+    s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+(r+4)+'" fill="none" stroke="#f0c060" stroke-width="0.8" opacity="0.16"/>';
+    s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="#1a1000" stroke="#f0c060" stroke-width="1.5" filter="url(#gd)"/>';
+    const bw=14,bh=12,bx=cx-bw/2,by=cy-bh/2+1;
+    s+='<rect x="'+bx+'" y="'+by+'" width="'+bw+'" height="'+bh+'" rx="1.5" fill="none" stroke="#f0c060" stroke-width="1.1" opacity="0.85"/>';
+    for(let wi=0;wi<2;wi++) for(let wj=0;wj<2;wj++) s+='<rect x="'+(bx+3+wi*5)+'" y="'+(by+3+wj*4)+'" width="2.5" height="2.5" rx="0.5" fill="#f0c060" opacity="0.45"/>';
+    s+='<text x="'+cx+'" y="'+(cy+r+13)+'" text-anchor="middle" dominant-baseline="central" font-family="JetBrains Mono,monospace" font-size="10.5" font-weight="700" fill="#f0c060">D'+j+'</text>';
+    s+='<text x="'+(cx+r+10)+'" y="'+cy+'" text-anchor="start" dominant-baseline="central" font-family="JetBrains Mono,monospace" font-size="7.5" fill="#f0c060" opacity="0.85">D='+D[j]+'</text>';
+  }
+  if(!showLabels) s+='<text x="'+(W/2)+'" y="'+(totalH-14)+'" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="8" fill="#5580a0" opacity="0.8">cost labels hidden ('+totalEdges+' edges) — see cost matrix above</text>';
+  if(minC!==maxC){
+    const lx=W/2-90,ly=showLabels?totalH-13:totalH-30,steps=24,sw=72;
+    for(let k=0;k<steps;k++){const t=k/steps,col=edgeCol(minC+t*cRange),sx=lx+14+k*(sw/steps);s+='<line x1="'+sx+'" y1="'+ly+'" x2="'+(sx+sw/steps+1)+'" y2="'+ly+'" stroke="'+col+'" stroke-width="2.5"/>';}
+    s+='<text x="'+(lx+14)+'" y="'+(ly+9)+'" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="7" fill="#38d9c8">'+minC+'</text>';
+    s+='<text x="'+(lx+14+sw)+'" y="'+(ly+9)+'" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="7" fill="#ff8080">'+maxC+'</text>';
+    s+='<text x="'+(lx+14+sw/2)+'" y="'+(ly+9)+'" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="7" fill="#4a7080">c<sub>ij</sub></text>';
+  }
+  s+='</svg>';
+  const leg='<div class="viz-legend"><div class="leg-item"><div class="leg-dot" style="background:#38d9c8;box-shadow:0 0 5px #38d9c8"></div> Facility F<sub>i</sub> — size &prop; Cap<sub>i</sub></div><div class="leg-item"><div class="leg-dot" style="background:#f0c060;box-shadow:0 0 5px #f0c060"></div> Customer D<sub>j</sub> — size &prop; D<sub>j</sub></div><div class="leg-item" style="gap:8px;"><svg width="32" height="8"><defs><linearGradient id="lgg2" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#38d9c8"/><stop offset="50%" stop-color="#f0c060"/><stop offset="100%" stop-color="#ff6b6b"/></linearGradient></defs><line x1="0" y1="4" x2="32" y2="4" stroke="url(#lgg2)" stroke-width="2.5"/></svg> edge = c<sub>ij</sub> unit cost</div></div>';
+  document.getElementById('viz-container').innerHTML=s+leg;
+}
+
+// ── Two-Phase Simplex ──
+function simplex2Phase(c_orig,A_orig,b_orig){
+  const m=A_orig.length,n=c_orig.length,nc1=n+m;
+  const T1=Array.from({length:m+1},()=>new Float64Array(nc1+1));
+  for(let r=0;r<m;r++){for(let j=0;j<n;j++) T1[r][j]=A_orig[r][j];T1[r][n+r]=1;T1[r][nc1]=b_orig[r];}
+  for(let j=0;j<n;j++) for(let r=0;r<m;r++) T1[m][j]-=T1[r][j];
+  for(let r=0;r<m;r++) T1[m][nc1]-=T1[r][nc1];
+  const basis=Array.from({length:m},(_,i)=>n+i);
+  function doPivot(T,nr,pr,pc,ncols){basis[pr]=pc;const piv=T[pr][pc];for(let j=0;j<=ncols;j++) T[pr][j]/=piv;for(let r=0;r<=nr;r++){if(r===pr)continue;const fv=T[r][pc];if(fv===0)continue;for(let j=0;j<=ncols;j++) T[r][j]-=fv*T[pr][j];}}
+  function iterate(T,nr,ncols){for(let it=0;it<10000;it++){let pc=-1,best=-1e-9;for(let j=0;j<ncols;j++) if(T[nr][j]<best){best=T[nr][j];pc=j;}if(pc===-1)return;let pr=-1,minR=Infinity;for(let r=0;r<nr;r++) if(T[r][pc]>1e-10){const rt=T[r][ncols]/T[r][pc];if(rt<minR){minR=rt;pr=r;}}if(pr===-1)return;doPivot(T,nr,pr,pc,ncols);}}
+  iterate(T1,m,nc1);
+  if(T1[m][nc1]<-1e-6) return{status:'infeasible'};
+  for(let r=0;r<m;r++) if(basis[r]>=n) for(let j=0;j<n;j++) if(Math.abs(T1[r][j])>1e-10){doPivot(T1,m,r,j,nc1);break;}
+  const T2=Array.from({length:m+1},()=>new Float64Array(n+1));
+  for(let r=0;r<m;r++){for(let j=0;j<n;j++) T2[r][j]=T1[r][j];T2[r][n]=T1[r][nc1];}
+  for(let j=0;j<n;j++) T2[m][j]=c_orig[j];
+  for(let r=0;r<m;r++){const bv=basis[r];if(bv<n){const fv=T2[m][bv];if(Math.abs(fv)>1e-15) for(let j=0;j<=n;j++) T2[m][j]-=fv*T2[r][j];}}
+  iterate(T2,m,n);
+  const x=new Float64Array(n);
+  for(let r=0;r<m;r++) if(basis[r]<n) x[basis[r]]=Math.max(0,T2[r][n]);
+  return{status:'optimal',x:Array.from(x),obj:-T2[m][n]};
+}
+
+// ── LP for custom problem ──
+function solveLP(d,f,C,demand,fixedCost,cap,Yfix){
+  const nX=d*f,n=nX+f;
+  const c=new Array(n).fill(0);
+  for(let i=1;i<=d;i++) for(let j=1;j<=f;j++) c[(i-1)*f+(j-1)]=C[i][j];
+  for(let j=1;j<=f;j++) c[nX+(j-1)]=fixedCost[j];
+  const Arows=[];
+  for(let i=1;i<=d;i++){const row=new Array(n).fill(0);for(let j=1;j<=f;j++) row[(i-1)*f+(j-1)]=1;Arows.push({r:row,b:demand[i],t:'eq'});}
+  for(let j=1;j<=f;j++){const row=new Array(n).fill(0);for(let i=1;i<=d;i++) row[(i-1)*f+(j-1)]=1;row[nX+(j-1)]=-cap[j];Arows.push({r:row,b:0,t:'le'});}
+  for(let j=1;j<=f;j++){const row=new Array(n).fill(0);row[nX+(j-1)]=1;if(Yfix[j]!==null)Arows.push({r:row,b:Yfix[j],t:'eq'});else Arows.push({r:row,b:1,t:'le'});}
+  let nS=0;for(const rw of Arows) if(rw.t==='le') nS++;
+  const N=n+nS;const fullC=new Array(N).fill(0);for(let j=0;j<n;j++) fullC[j]=c[j];
+  const A=[],b=[];let si=0;
+  for(const rw of Arows){const row=new Array(N).fill(0);for(let j=0;j<n;j++) row[j]=rw.r[j];let rhs=rw.b;if(rw.t==='le'){row[n+si]=1;si++;}if(rhs<0){for(let j=0;j<N;j++) row[j]*=-1;rhs=-rhs;}A.push(row);b.push(rhs);}
+  const res=simplex2Phase(fullC,A,b);
+  if(res.status!=='optimal') return res;
+  return{status:'optimal',sol:res.x.slice(0,n),obj:res.obj};
+}
+
+// ── LP for book problem (Low/High capacity) ──
+function solveLPBook(d,f,C,demand,fLow,fHigh,capL,capH,YLfix,YHfix){
+  const nX=d*f,n=nX+2*f;
+  const c=new Array(n).fill(0);
+  for(let i=1;i<=d;i++) for(let j=1;j<=f;j++) c[(i-1)*f+(j-1)]=C[i][j];
+  for(let j=1;j<=f;j++){c[nX+(j-1)]=fLow[j];c[nX+f+(j-1)]=fHigh[j];}
+  const Arows=[];
+  for(let i=1;i<=d;i++){const row=new Array(n).fill(0);for(let j=1;j<=f;j++) row[(i-1)*f+(j-1)]=1;Arows.push({r:row,b:demand[i],t:'eq'});}
+  for(let j=1;j<=f;j++){const row=new Array(n).fill(0);for(let i=1;i<=d;i++) row[(i-1)*f+(j-1)]=1;row[nX+(j-1)]=-capL[j];row[nX+f+(j-1)]=-capH[j];Arows.push({r:row,b:0,t:'le'});}
+  for(let j=1;j<=f;j++){const row=new Array(n).fill(0);row[nX+(j-1)]=1;row[nX+f+(j-1)]=1;Arows.push({r:row,b:1,t:'le'});}
+  for(let j=1;j<=f;j++){
+    const rL=new Array(n).fill(0);rL[nX+(j-1)]=1;
+    if(YLfix[j]!==null)Arows.push({r:rL,b:YLfix[j],t:'eq'});else Arows.push({r:rL,b:1,t:'le'});
+    const rH=new Array(n).fill(0);rH[nX+f+(j-1)]=1;
+    if(YHfix[j]!==null)Arows.push({r:rH,b:YHfix[j],t:'eq'});else Arows.push({r:rH,b:1,t:'le'});
+  }
+  let nS=0;for(const rw of Arows) if(rw.t==='le') nS++;
+  const N=n+nS;const fullC=new Array(N).fill(0);for(let k=0;k<n;k++) fullC[k]=c[k];
+  const A=[],b=[];let si=0;
+  for(const rw of Arows){const row=new Array(N).fill(0);for(let k=0;k<n;k++) row[k]=rw.r[k];let rhs=rw.b;if(rw.t==='le'){row[n+si]=1;si++;}if(rhs<0){for(let k=0;k<N;k++) row[k]*=-1;rhs=-rhs;}A.push(row);b.push(rhs);}
+  const res=simplex2Phase(fullC,A,b);
+  if(res.status!=='optimal') return res;
+  return{status:'optimal',sol:res.x.slice(0,n),obj:res.obj};
+}
+
+// ── B&B Custom ──
+function branchAndBound(d,f,C,demand,fixedCost,cap){
+  let bestObj=Infinity,bestSol=null;
+  const stack=[new Array(f+1).fill(null)];let nodes=0;
+  while(stack.length>0&&nodes<5000){
+    const Yfix=stack.pop();nodes++;
+    const lp=solveLP(d,f,C,demand,fixedCost,cap,Yfix);
+    if(lp.status!=='optimal') continue;
+    if(lp.obj>=bestObj-1e-8) continue;
+    const nX=d*f;let brJ=-1,bFrac=0;
+    for(let j=1;j<=f;j++){if(Yfix[j]!==null)continue;const yv=lp.sol[nX+(j-1)];const fr=Math.min(yv-Math.floor(yv),Math.ceil(yv)-yv);if(fr>1e-6&&fr>bFrac){bFrac=fr;brJ=j;}}
+    if(brJ===-1){bestObj=lp.obj;bestSol=lp.sol.slice();continue;}
+    const Y0=[...Yfix];Y0[brJ]=0;const Y1=[...Yfix];Y1[brJ]=1;stack.push(Y0);stack.push(Y1);
+  }
+  if(!bestSol) return{status:'no_solution_found',nodes};
+  const nX=d*f,X=[],Y=[];
+  for(let i=1;i<=d;i++){X[i]=[];for(let j=1;j<=f;j++) X[i][j]=Math.max(0,bestSol[(i-1)*f+(j-1)]);}
+  for(let j=1;j<=f;j++) Y[j]=Math.round(bestSol[nX+(j-1)]);
+  return{status:'optimal',obj:bestObj,X,Y,nodes};
+}
+
+// ── B&B Book (Low/High) ──
+function branchAndBoundBook(d,f,C,demand,fLow,fHigh,capL,capH){
+  let bestObj=Infinity,bestSol=null;
+  const iYL=new Array(f+1).fill(null),iYH=new Array(f+1).fill(null);
+  const stack=[{YL:iYL,YH:iYH}];let nodes=0;
+  while(stack.length>0&&nodes<20000){
+    const{YL,YH}=stack.pop();nodes++;
+    const lp=solveLPBook(d,f,C,demand,fLow,fHigh,capL,capH,YL,YH);
+    if(lp.status!=='optimal') continue;
+    if(lp.obj>=bestObj-1e-8) continue;
+    const nX=d*f;let brJ=-1,brT=null,bFrac=0;
+    for(let j=1;j<=f;j++){
+      if(YL[j]===null){const yv=lp.sol[nX+(j-1)];const fr=Math.min(yv-Math.floor(yv),Math.ceil(yv)-yv);if(fr>1e-6&&fr>bFrac){bFrac=fr;brJ=j;brT='L';}}
+      if(YH[j]===null){const yv=lp.sol[nX+f+(j-1)];const fr=Math.min(yv-Math.floor(yv),Math.ceil(yv)-yv);if(fr>1e-6&&fr>bFrac){bFrac=fr;brJ=j;brT='H';}}
+    }
+    if(brJ===-1){bestObj=lp.obj;bestSol=lp.sol.slice();continue;}
+    if(brT==='L'){const A0={YL:[...YL],YH:[...YH]};A0.YL[brJ]=0;const A1={YL:[...YL],YH:[...YH]};A1.YL[brJ]=1;stack.push(A0);stack.push(A1);}
+    else{const A0={YL:[...YL],YH:[...YH]};A0.YH[brJ]=0;const A1={YL:[...YL],YH:[...YH]};A1.YH[brJ]=1;stack.push(A0);stack.push(A1);}
+  }
+  if(!bestSol) return{status:'no_solution_found',nodes};
+  const nX=d*f,X=[],YL=[],YH=[];
+  for(let i=1;i<=d;i++){X[i]=[];for(let j=1;j<=f;j++) X[i][j]=Math.max(0,bestSol[(i-1)*f+(j-1)]);}
+  for(let j=1;j<=f;j++){YL[j]=Math.round(bestSol[nX+(j-1)]);YH[j]=Math.round(bestSol[nX+f+(j-1)]);}
+  return{status:'optimal',obj:bestObj,X,YL,YH,nodes};
+}
+
+// ── Solve dispatcher ──
+function solveMILP(){
+  const el=document.getElementById('solver-output');
+  const card=document.getElementById('solver-card');
+  card.style.display='block';
+  el.innerHTML='<span style="color:#c084fc;opacity:.7;">Solving&hellip; (Branch &amp; Bound)</span>';
+  setTimeout(()=>{
+    try{
+      const m=readModel();
+      let res;
+      if(m.mode==='book'){
+        res=branchAndBoundBook(m.d,m.f,m.C,m.demand,m.fixedLow,m.fixedHigh,m.capLow,m.capHigh);
+        renderSolutionBook(res,m,el);
+      } else if(m.mode==='cplm'){
+        res=branchAndBoundCplm(m.n,m.m,m.C,m.D,m.f,m.K);
+        renderSolutionCplm(res,m,el);
+      } else {
+        res=branchAndBound(m.d,m.f,m.C,m.demand,m.fixedCost,m.cap);
+        renderSolutionCustom(res,m,el);
+      }
+    }catch(e){el.innerHTML='<span style="color:var(--red);">Solver error: '+e.message+'</span>';}
+  },30);
+}
+
+// ── Render custom solution ──
+function renderSolutionCustom(res,m,el){
+  const{d,f,C,demand,fixedCost,cap}=m;
+  if(res.status!=='optimal'){el.innerHTML='<span style="color:var(--red);">Status: '+res.status+(res.nodes?' (nodes: '+res.nodes+')':'')+'</span>';return;}
+  let h=solutionHeader(res.obj,res.nodes);
+  h+=openFacilitiesBlock(res.Y,f,fixedCost,cap,j=>'F'+j,j=>'f='+fixedCost[j]+' cap='+cap[j]);
+  h+=closedBlock(res.Y,f,j=>'F'+j);
+  h+=flowTable(res.X,res.Y,d,f,demand,cap,i=>'D'+i,j=>'F'+j);
+  h+=costBreakdown(res.X,res.Y,d,f,C,fixedCost);
+  el.innerHTML=h;
+}
+
+// ── Render book solution ──
+function renderSolutionBook(res,m,el){
+  const{d,f,C,demand,fixedLow,fixedHigh,capLow,capHigh,facilityNames,demandNames}=m;
+  if(res.status!=='optimal'){el.innerHTML='<span style="color:var(--red);">Status: '+res.status+(res.nodes?' (nodes: '+res.nodes+')':'')+'</span>';return;}
+  let h=solutionHeader(res.obj,res.nodes);
+  // Open facilities
+  h+='<div style="font-size:.65rem;font-weight:700;color:var(--cyan);letter-spacing:1.5px;margin-bottom:6px;">&#9472;&#9472; FACILITY DECISIONS</div>';
+  h+='<div style="background:rgba(56,217,200,0.05);border:1px solid rgba(56,217,200,.13);border-left:3px solid var(--cyan2);border-radius:var(--r);padding:11px 16px;margin-bottom:14px;"><div style="display:flex;flex-wrap:wrap;gap:10px;">';
+  for(let j=1;j<=f;j++){
+    const isL=res.YL[j]===1,isH=res.YH[j]===1;
+    if(isL||isH){
+      const lvl=isL?'LOW':'HIGH',col=isL?'var(--gold)':'var(--purple)';
+      const cap=isL?capLow[j]:capHigh[j], fc=isL?fixedLow[j]:fixedHigh[j];
+      h+='<div style="background:rgba(56,217,200,0.08);border:1px solid rgba(56,217,200,.28);border-radius:6px;padding:7px 13px;">';
+      h+='<span style="color:var(--green);font-weight:700;">'+facilityNames[j-1]+'</span> <span style="color:'+col+';font-size:.7rem;font-weight:700;">'+lvl+'</span><br>';
+      h+='<span style="font-size:.68rem;color:var(--ink3);">fixed=$'+fc.toLocaleString()+' &nbsp; cap='+cap+'</span></div>';
+    }
+  }
+  h+='</div></div>';
+  // Closed
+  let anyClosed=false;for(let j=1;j<=f;j++) if(!res.YL[j]&&!res.YH[j]) anyClosed=true;
+  if(anyClosed){
+    h+='<div style="font-size:.65rem;font-weight:700;color:var(--ink3);letter-spacing:1.5px;margin-bottom:6px;">&#9472;&#9472; CLOSED FACILITIES</div>';
+    h+='<div style="background:rgba(99,161,220,.03);border:1px solid var(--border);border-left:3px solid var(--border2);border-radius:var(--r);padding:10px 16px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:8px;">';
+    for(let j=1;j<=f;j++) if(!res.YL[j]&&!res.YH[j]) h+='<span style="color:var(--ink3);">'+facilityNames[j-1]+'</span>';
+    h+='</div>';
+  }
+  // Flow table
+  h+='<div style="font-size:.65rem;font-weight:700;color:var(--gold);letter-spacing:1.5px;margin-bottom:6px;">&#9472;&#9472; OPTIMAL FLOW MATRIX X<sub>ij</sub> (units = millions)</div>';
+  h+='<div style="overflow-x:auto;margin-bottom:14px;"><table style="border-collapse:collapse;font-size:.73rem;">';
+  h+='<thead><tr><th style="border:1px solid var(--border);padding:7px 12px;background:var(--bg2);color:var(--ink3);font-size:.63rem;">Supply \\ Demand</th>';
+  for(let i=1;i<=d;i++) h+='<th style="border:1px solid var(--border);padding:7px 10px;background:var(--bg2);color:var(--gold);font-size:.63rem;">'+demandNames[i-1]+'</th>';
+  h+='<th style="border:1px solid var(--border);padding:7px 10px;background:var(--bg2);color:var(--cyan);font-size:.63rem;">Total Used</th>';
+  h+='<th style="border:1px solid var(--border);padding:7px 10px;background:var(--bg2);color:var(--ink3);font-size:.63rem;">Capacity</th>';
+  h+='<th style="border:1px solid var(--border);padding:7px 10px;background:var(--bg2);color:var(--ink3);font-size:.63rem;">Level</th></tr></thead><tbody>';
+  for(let j=1;j<=f;j++){
+    const isL=res.YL[j]===1,isH=res.YH[j]===1,open=isL||isH;
+    const cap=isL?capLow[j]:isH?capHigh[j]:0;
+    const lvl=isL?'LOW':isH?'HIGH':'—';
+    const lvlCol=isL?'var(--gold)':isH?'var(--purple)':'var(--ink3)';
+    h+='<tr><td style="border:1px solid var(--border);padding:7px 10px;background:var(--bg2);color:'+(open?'var(--cyan)':'var(--ink3)')+';font-family:var(--mono);font-weight:700;font-size:.73rem;">'+facilityNames[j-1]+'</td>';
+    let tot=0;
+    for(let i=1;i<=d;i++){const v=res.X[i][j];tot+=v;const col=v>0.01?(open?'var(--cyan)':'var(--gold)'):'var(--ink3)';h+='<td style="border:1px solid var(--border);padding:7px 10px;color:'+col+';font-family:var(--mono);">'+(v>0.01?v.toFixed(1):'—')+'</td>';}
+    h+='<td style="border:1px solid var(--border);padding:7px 10px;color:'+(open?'var(--cyan)':'var(--ink3)')+';font-family:var(--mono);font-weight:700;">'+(open?tot.toFixed(1):'0')+'</td>';
+    h+='<td style="border:1px solid var(--border);padding:7px 10px;color:var(--ink3);font-family:var(--mono);">'+(open?cap:'—')+'</td>';
+    h+='<td style="border:1px solid var(--border);padding:7px 10px;color:'+lvlCol+';font-family:var(--mono);font-weight:700;">'+lvl+'</td></tr>';
+  }
+  h+='</tbody></table></div>';
+  // Cost breakdown
+  let transCost=0,fixedTotal=0;
+  for(let i=1;i<=d;i++) for(let j=1;j<=f;j++) transCost+=C[i][j]*res.X[i][j];
+  for(let j=1;j<=f;j++) fixedTotal+=fixedLow[j]*res.YL[j]+fixedHigh[j]*res.YH[j];
+  h+='<div style="font-size:.65rem;font-weight:700;color:var(--ink3);letter-spacing:1.5px;margin-bottom:6px;">&#9472;&#9472; COST BREAKDOWN ($ thousands)</div>';
+  h+='<div style="background:rgba(90,240,144,.04);border:1px solid rgba(90,240,144,.13);border-left:3px solid var(--green);border-radius:var(--r);padding:11px 16px;">';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">';
+  h+='<div><div style="font-size:.65rem;color:var(--ink3);">Transportation</div><span style="color:var(--green);font-weight:700;">$'+transCost.toLocaleString(undefined,{maximumFractionDigits:0})+'</span></div>';
+  h+='<div><div style="font-size:.65rem;color:var(--ink3);">Fixed Opening</div><span style="color:var(--gold);font-weight:700;">$'+fixedTotal.toLocaleString(undefined,{maximumFractionDigits:0})+'</span></div>';
+  h+='<div><div style="font-size:.65rem;color:var(--ink3);">Total Z*</div><span style="color:var(--purple);font-weight:700;">$'+(transCost+fixedTotal).toLocaleString(undefined,{maximumFractionDigits:0})+'</span></div>';
+  h+='</div></div>';
+  el.innerHTML=h;
+}
+
+// ── Shared render helpers ──
+function solutionHeader(obj,nodes){
+  return '<div style="font-size:.65rem;font-weight:700;color:#c084fc;letter-spacing:1.8px;margin-bottom:10px;">&#9472;&#9472; SOLUTION SUMMARY</div>'
+    +'<div style="background:rgba(192,132,252,0.07);border:1px solid rgba(192,132,252,0.2);border-left:3px solid #c084fc;border-radius:var(--r);padding:12px 16px;margin-bottom:14px;">'
+    +'<div style="font-size:1rem;font-weight:700;color:#c084fc;">Optimal Cost Z* = <span style="color:#c084fc;font-weight:700;">'+obj.toFixed(2)+'</span></div>'
+    +'<div style="font-size:.7rem;color:var(--ink3);margin-top:4px;">B&amp;B nodes explored: '+nodes+'</div></div>';
+}
+function openFacilitiesBlock(Y,f,fixedCost,cap,nameFn,detailFn){
+  let h='<div style="font-size:.65rem;font-weight:700;color:var(--cyan);letter-spacing:1.5px;margin-bottom:6px;">&#9472;&#9472; OPEN FACILITIES</div>';
+  h+='<div style="background:rgba(56,217,200,.05);border:1px solid rgba(56,217,200,.13);border-left:3px solid var(--cyan2);border-radius:var(--r);padding:11px 16px;margin-bottom:14px;"><div style="display:flex;flex-wrap:wrap;gap:10px;">';
+  let any=false;
+  for(let j=1;j<=f;j++) if(Y[j]===1){any=true;h+='<div style="background:rgba(56,217,200,.1);border:1px solid rgba(56,217,200,.3);border-radius:6px;padding:6px 12px;"><span style="color:var(--green);font-weight:700;">'+nameFn(j)+' OPEN</span><br><span style="font-size:.7rem;color:var(--ink3);">'+detailFn(j)+'</span></div>';}
+  if(!any) h+='<span style="color:var(--ink3);">No facilities opened</span>';
+  return h+'</div></div>';
+}
+function closedBlock(Y,f,nameFn){
+  let any=false;for(let j=1;j<=f;j++) if(Y[j]===0) any=true;
+  if(!any) return '';
+  let h='<div style="font-size:.65rem;font-weight:700;color:var(--ink3);letter-spacing:1.5px;margin-bottom:6px;">&#9472;&#9472; CLOSED FACILITIES</div>';
+  h+='<div style="background:rgba(99,161,220,.03);border:1px solid var(--border);border-left:3px solid var(--border2);border-radius:var(--r);padding:10px 16px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:8px;">';
+  for(let j=1;j<=f;j++) if(Y[j]===0) h+='<span style="color:var(--ink3);">'+nameFn(j)+'</span>';
+  return h+'</div>';
+}
+function flowTable(X,Y,d,f,demand,cap,dFn,fFn){
+  let h='<div style="font-size:.65rem;font-weight:700;color:var(--gold);letter-spacing:1.5px;margin-bottom:6px;">&#9472;&#9472; OPTIMAL FLOW MATRIX X<sub>ij</sub></div>';
+  h+='<div style="overflow-x:auto;margin-bottom:14px;"><table style="border-collapse:collapse;font-size:.75rem;">';
+  h+='<thead><tr><th style="border:1px solid var(--border);padding:7px 12px;background:var(--bg2);color:var(--ink3);font-size:.65rem;text-transform:uppercase;">D \\ F</th>';
+  for(let j=1;j<=f;j++){const open=Y[j]===1;h+='<th style="border:1px solid var(--border);padding:7px 12px;background:var(--bg2);color:'+(open?'var(--cyan)':'var(--ink3)')+';font-size:.65rem;">'+fFn(j)+(open?' &#9679;':'')+'</th>';}
+  h+='<th style="border:1px solid var(--border);padding:7px 12px;background:var(--bg2);color:var(--gold);font-size:.65rem;">Total</th></tr></thead><tbody>';
+  for(let i=1;i<=d;i++){
+    h+='<tr><td style="border:1px solid var(--border);padding:7px 12px;background:var(--bg2);color:var(--gold);font-family:var(--mono);font-weight:700;">'+dFn(i)+'</td>';
+    let rowT=0;
+    for(let j=1;j<=f;j++){const v=X[i][j],open=Y[j]===1;const col=v>0.01?(open?'var(--cyan)':'var(--gold)'):'var(--ink3)';rowT+=v;h+='<td style="border:1px solid var(--border);padding:7px 12px;color:'+col+';font-family:var(--mono);">'+(v>0.01?v.toFixed(1):'—')+'</td>';}
+    h+='<td style="border:1px solid var(--border);padding:7px 12px;color:var(--gold);font-family:var(--mono);font-weight:700;">'+rowT.toFixed(1)+'</td></tr>';
+  }
+  h+='<tr><td style="border:1px solid var(--border);padding:7px 12px;background:var(--bg2);color:var(--ink3);font-size:.63rem;text-transform:uppercase;">Used</td>';
+  for(let j=1;j<=f;j++){let cT=0;for(let i=1;i<=d;i++) cT+=X[i][j];const open=Y[j]===1;const util=open?(cT/cap[j]*100).toFixed(0)+'%':'—';h+='<td style="border:1px solid var(--border);padding:7px 12px;color:'+(open?'var(--cyan)':'var(--ink3)')+';font-family:var(--mono);font-size:.72rem;">'+(cT>0.01?cT.toFixed(1):'0')+'<br><span style="font-size:.65rem;opacity:.7;">'+util+'</span></td>';}
+  h+='<td style="border:1px solid var(--border);padding:7px 12px;"></td></tr></tbody></table></div>';
+  return h;
+}
+function costBreakdown(X,Y,d,f,C,fixedCost){
+  let transCost=0,fixedTotal=0;
+  for(let i=1;i<=d;i++) for(let j=1;j<=f;j++) transCost+=C[i][j]*X[i][j];
+  for(let j=1;j<=f;j++) fixedTotal+=fixedCost[j]*Y[j];
+  return '<div style="font-size:.65rem;font-weight:700;color:var(--ink3);letter-spacing:1.5px;margin-bottom:6px;">&#9472;&#9472; COST BREAKDOWN</div>'
+    +'<div style="background:rgba(90,240,144,.04);border:1px solid rgba(90,240,144,.13);border-left:3px solid var(--green);border-radius:var(--r);padding:11px 16px;">'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">'
+    +'<div><div style="font-size:.65rem;color:var(--ink3);">Transportation</div><span style="color:var(--green);font-weight:700;">'+transCost.toFixed(2)+'</span></div>'
+    +'<div><div style="font-size:.65rem;color:var(--ink3);">Fixed Opening</div><span style="color:var(--gold);font-weight:700;">'+fixedTotal.toFixed(2)+'</span></div>'
+    +'<div><div style="font-size:.65rem;color:var(--ink3);">Total Z*</div><span style="color:var(--purple);font-weight:700;">'+(transCost+fixedTotal).toFixed(2)+'</span></div>'
+    +'</div></div>';
+}
+
+// ── Download ──
+function downloadFormulation(){
+  const el=document.getElementById('output');
+  if(!el||el.querySelector('.out-empty')) generateFormulation();
+  const m=readModel();
+  const label=m.mode==='book'?'DualFacility':m.mode==='cplm'?'CPLM_SingleSourcing':m.d+'D_'+m.f+'F';
+  const blob=new Blob(['Facility Location MILP\nProblem: '+label+'\n\n'+document.getElementById('output').innerText],{type:'text/plain'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='MILP_'+label+'.txt';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);
+  showToast('Downloaded');
+}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+
+// ── CPLM: Build Tables ──
+function buildCplmTable(){
+  const m=clamp(gi('cplmDemandCount',4),1,10);   // customers
+  const n=clamp(gi('cplmFacilityCount',3),1,10); // facilities
+  document.getElementById('cplmDemandCount').value=m;
+  document.getElementById('cplmFacilityCount').value=n;
+
+  // Cost matrix: facilities i=rows, customers j=cols
+  let ch='<table><thead><tr><th>F \\ D</th>';
+  for(let j=1;j<=m;j++) ch+='<th style="color:var(--gold)">D'+j+'</th>';
+  ch+='</tr></thead><tbody>';
+  for(let i=1;i<=n;i++){
+    ch+='<tr><td class="label">F'+i+'</td>';
+    for(let j=1;j<=m;j++){
+      const v=0;
+      ch+='<td><input type="number" id="cc_'+i+'_'+j+'" value="'+v+'" step="1" min="0" style="width:72px"></td>';
+    }
+    ch+='</tr>';
+  }
+  ch+='</tbody></table>';
+  document.getElementById('cplm-cost-wrap').innerHTML=ch;
+
+  // Demand D_j
+  let dh='<table><thead><tr><th>Customer</th><th>Demand D<sub>j</sub></th></tr></thead><tbody>';
+  for(let j=1;j<=m;j++){
+    const v=0;
+    dh+='<tr><td class="label">D'+j+'</td><td><input type="number" id="cd_'+j+'" value="'+v+'" step="5" min="1"></td></tr>';
+  }
+  dh+='</tbody></table>';
+  document.getElementById('cplm-demand-wrap').innerHTML=dh;
+
+  // Facility fixed cost f_i and capacity Cap_i
+  let fh='<table><thead><tr><th>Facility</th><th>Fixed Cost f<sub>i</sub></th><th>Capacity Cap<sub>i</sub></th></tr></thead><tbody>';
+  for(let i=1;i<=n;i++){
+    const fc=0, ki=0;
+    fh+='<tr><td class="label">F'+i+'</td>';
+    fh+='<td><input type="number" id="cf_'+i+'" value="'+fc+'" step="10" min="0"></td>';
+    fh+='<td><input type="number" id="ck_'+i+'" value="'+ki+'" step="25" min="1"></td>';
+    fh+='</tr>';
+  }
+  fh+='</tbody></table>';
+  document.getElementById('cplm-facility-wrap').innerHTML=fh;
+  document.getElementById('viz-container').innerHTML='<div class="viz-empty"><span class="big-icon">&#9671;</span>Click &ldquo;Draw Network&rdquo; to visualize<br>the facility&ndash;demand graph</div>';
+}
+
+function readCplmModel(){
+  const m=clamp(gi('cplmDemandCount',4),1,10);
+  const n=clamp(gi('cplmFacilityCount',3),1,10);
+  const C=[],D=[],f=[],K=[];
+  for(let i=1;i<=n;i++){C[i]=[];for(let j=1;j<=m;j++) C[i][j]=gf('cc_'+i+'_'+j,10);}
+  for(let j=1;j<=m;j++) D[j]=Math.max(gf('cd_'+j,50),1);
+  for(let i=1;i<=n;i++){f[i]=Math.max(gf('cf_'+i,100),0);K[i]=Math.max(gf('ck_'+i,300),1);}
+  return{mode:'cplm',n,m,C,D,f,K};
+}
+
+// ── CPLM Generate Formulation ──
+function generateCplmFormulation(m2){
+  const{n,m,C,D,f,K}=m2;
+  let html='';
+  html+='<h3>Objective Function &mdash; Minimize Total Cost</h3>';
+  let terms=[];
+  for(let i=1;i<=n;i++) if(f[i]) terms.push(f[i]+'&middot;y<sub>'+i+'</sub>');
+  for(let i=1;i<=n;i++) for(let j=1;j<=m;j++) terms.push(D[j]+'&middot;'+C[i][j]+'&middot;x<sub>'+i+j+'</sub>');
+  html+='<div class="blk"><div class="obj">min Z = '+terms.join(' + ')+'</div></div>';
+
+  html+='<h3>Subject To</h3>';
+  html+='<div style="font-size:.63rem;font-weight:700;color:var(--cyan);margin-bottom:6px;letter-spacing:1.5px;">&#9472;&#9472; SINGLE SOURCING (Each demand point is assigned to exactly one facility)</div>';
+  html+='<div class="blk"><div class="cl">';
+  for(let j=1;j<=m;j++){
+    let p=[];for(let i=1;i<=n;i++) p.push('x<sub>'+i+j+'</sub>');
+    html+='<div>'+p.join(' + ')+' = 1&nbsp;&nbsp;&forall;j='+j+' (D'+j+')</div>';
+  }
+  html+='</div></div>';
+
+  html+='<div style="font-size:.63rem;font-weight:700;color:var(--gold);margin-top:12px;margin-bottom:6px;letter-spacing:1.5px;">&#9472;&#9472; CAPACITY CONSTRAINTS</div>';
+  html+='<div class="blk cap"><div class="cl">';
+  for(let i=1;i<=n;i++){
+    let p=[];for(let j=1;j<=m;j++) p.push(D[j]+'&middot;x<sub>'+i+j+'</sub>');
+    html+='<div>'+p.join(' + ')+' &le; '+K[i]+'&middot;y<sub>'+i+'</sub>&nbsp;&nbsp;&forall;i='+i+' (F'+i+', Cap='+K[i]+')</div>';
+  }
+  html+='</div></div>';
+
+  html+='<div style="font-size:.63rem;font-weight:700;color:var(--green);margin-top:12px;margin-bottom:6px;letter-spacing:1.5px;">&#9472;&#9472; NON-NEGATIVITY CONSTRAINTS </div>';
+  html+='<div class="blk var"><div class="cl">';
+  for(let i=1;i<=n;i++) for(let j=1;j<=m;j++) html+='<div>x<sub>'+i+j+'</sub> &isin; {0,1}</div>';
+  for(let i=1;i<=n;i++) html+='<div>y<sub>'+i+'</sub> &isin; {0,1}</div>';
+  html+='</div></div>';
+  html+='<details><summary>&#9656; Data Snapshot</summary><div>Demands D: '+D.slice(1).join(', ')+'<br>Fixed Costs f: '+f.slice(1).join(', ')+'<br>Capacities Cap: '+K.slice(1).join(', ')+'</div></details>';
+  document.getElementById('output').innerHTML=html;
+}
+
+// ── CPLM LP relaxation ──
+function solveLPCplm(n,m,C,D,f,K,Yfix,Xfix){
+  const nX=n*m, nV=nX+n;
+  const c=new Array(nV).fill(0);
+  for(let i=1;i<=n;i++) for(let j=1;j<=m;j++) c[(i-1)*m+(j-1)]=D[j]*C[i][j];
+  for(let i=1;i<=n;i++) c[nX+(i-1)]=f[i];
+
+  const Arows=[];
+  for(let j=1;j<=m;j++){
+    const row=new Array(nV).fill(0);
+    for(let i=1;i<=n;i++) row[(i-1)*m+(j-1)]=1;
+    Arows.push({r:row,b:1,t:'eq'});
+  }
+  for(let i=1;i<=n;i++){
+    const row=new Array(nV).fill(0);
+    for(let j=1;j<=m;j++) row[(i-1)*m+(j-1)]=D[j];
+    row[nX+(i-1)]=-K[i];
+    Arows.push({r:row,b:0,t:'le'});
+  }
+  for(let i=1;i<=n;i++){
+    const row=new Array(nV).fill(0); row[nX+(i-1)]=1;
+    if(Yfix[i]!==null) Arows.push({r:row,b:Yfix[i],t:'eq'});
+    else Arows.push({r:row,b:1,t:'le'});
+  }
+  for(let i=1;i<=n;i++) for(let j=1;j<=m;j++){
+    const row=new Array(nV).fill(0); row[(i-1)*m+(j-1)]=1;
+    const xv=Xfix[i][j];
+    if(xv!==null) Arows.push({r:row,b:xv,t:'eq'});
+    else Arows.push({r:row,b:1,t:'le'});
+  }
+
+  let nS=0; for(const rw of Arows) if(rw.t==='le') nS++;
+  const N=nV+nS;
+  const fullC=new Array(N).fill(0); for(let k=0;k<nV;k++) fullC[k]=c[k];
+  const A=[],b=[]; let si=0;
+  for(const rw of Arows){
+    const row=new Array(N).fill(0); for(let k=0;k<nV;k++) row[k]=rw.r[k];
+    let rhs=rw.b;
+    if(rw.t==='le'){row[nV+si]=1;si++;}
+    if(rhs<0){for(let k=0;k<N;k++) row[k]*=-1; rhs=-rhs;}
+    A.push(row); b.push(rhs);
+  }
+  const res=simplex2Phase(fullC,A,b);
+  if(res.status!=='optimal') return res;
+  return{status:'optimal',sol:res.x.slice(0,nV),obj:res.obj};
+}
+
+// ── B&B for CPLM ──
+function branchAndBoundCplm(n,m,C,D,f,K){
+  let bestObj=Infinity, bestSol=null;
+  function mkState(){
+    const Y=new Array(n+1).fill(null);
+    const X=[];for(let i=1;i<=n;i++){X[i]=new Array(m+1).fill(null);}
+    return{Y,X};
+  }
+  const stack=[mkState()];
+  let nodes=0;
+  while(stack.length>0&&nodes<8000){
+    const{Y,X}=stack.pop(); nodes++;
+    const lp=solveLPCplm(n,m,C,D,f,K,Y,X);
+    if(lp.status!=='optimal') continue;
+    if(lp.obj>=bestObj-1e-8) continue;
+    const nX=n*m;
+    let brType=null,brI=-1,brJ=-1,bFrac=0;
+    for(let i=1;i<=n;i++){
+      if(Y[i]!==null) continue;
+      const yv=lp.sol[nX+(i-1)];
+      const fr=Math.min(yv-Math.floor(yv),Math.ceil(yv)-yv);
+      if(fr>1e-6&&fr>bFrac){bFrac=fr;brType='y';brI=i;}
+    }
+    if(brType===null){
+      for(let i=1;i<=n;i++) for(let j=1;j<=m;j++){
+        if(X[i][j]!==null) continue;
+        const xv=lp.sol[(i-1)*m+(j-1)];
+        const fr=Math.min(xv-Math.floor(xv),Math.ceil(xv)-xv);
+        if(fr>1e-6&&fr>bFrac){bFrac=fr;brType='x';brI=i;brJ=j;}
+      }
+    }
+    if(brType===null){
+      if(lp.obj<bestObj-1e-8){bestObj=lp.obj;bestSol=lp.sol.slice();}
+      continue;
+    }
+    if(brType==='y'){
+      const s0={Y:[...Y],X:X.map(r=>r?[...r]:r)};s0.Y[brI]=0;
+      const s1={Y:[...Y],X:X.map(r=>r?[...r]:r)};s1.Y[brI]=1;
+      stack.push(s0);stack.push(s1);
+    } else {
+      const s0={Y:[...Y],X:X.map(r=>r?[...r]:r)};s0.X[brI]=[...s0.X[brI]];s0.X[brI][brJ]=0;
+      const s1={Y:[...Y],X:X.map(r=>r?[...r]:r)};s1.X[brI]=[...s1.X[brI]];s1.X[brI][brJ]=1;
+      stack.push(s0);stack.push(s1);
+    }
+  }
+  if(!bestSol) return{status:'no_solution_found',nodes};
+  const nX=n*m, Xr=[], Yr=[];
+  for(let i=1;i<=n;i++){Xr[i]=[];for(let j=1;j<=m;j++) Xr[i][j]=Math.round(bestSol[(i-1)*m+(j-1)]);}
+  for(let i=1;i<=n;i++) Yr[i]=Math.round(bestSol[nX+(i-1)]);
+  return{status:'optimal',obj:bestObj,X:Xr,Y:Yr,nodes};
+}
+
+// ── Render CPLM solution ──
+function renderSolutionCplm(res,m2,el){
+  const{n,m,C,D,f,K}=m2;
+  if(res.status!=='optimal'){
+    el.innerHTML='<span style="color:var(--red);">Status: '+res.status+(res.nodes?' (nodes: '+res.nodes+')':'')+'</span>';
+    return;
+  }
+  let h=solutionHeader(res.obj,res.nodes);
+
+  h+='<div style="font-size:.65rem;font-weight:700;color:var(--cyan);letter-spacing:1.5px;margin-bottom:6px;">&#9472;&#9472; OPEN FACILITIES</div>';
+  h+='<div style="background:rgba(56,217,200,.05);border:1px solid rgba(56,217,200,.13);border-left:3px solid var(--cyan2);border-radius:var(--r);padding:11px 16px;margin-bottom:14px;"><div style="display:flex;flex-wrap:wrap;gap:10px;">';
+  let anyOpen=false;
+  for(let i=1;i<=n;i++) if(res.Y[i]===1){
+    anyOpen=true;
+    let totalLoad=0; for(let j=1;j<=m;j++) totalLoad+=D[j]*res.X[i][j];
+    h+='<div style="background:rgba(56,217,200,.1);border:1px solid rgba(56,217,200,.3);border-radius:6px;padding:6px 12px;">';
+    h+='<span style="color:var(--green);font-weight:700;">F'+i+' OPEN</span><br>';
+    h+='<span style="font-size:.7rem;color:var(--ink3);">f='+f[i]+' &nbsp; Cap='+K[i]+' &nbsp; load='+totalLoad.toFixed(0)+'</span></div>';
+  }
+  if(!anyOpen) h+='<span style="color:var(--ink3);">No facilities opened</span>';
+  h+='</div></div>';
+
+  let anyClosed=false; for(let i=1;i<=n;i++) if(res.Y[i]===0) anyClosed=true;
+  if(anyClosed){
+    h+='<div style="font-size:.65rem;font-weight:700;color:var(--ink3);letter-spacing:1.5px;margin-bottom:6px;">&#9472;&#9472; CLOSED FACILITIES</div>';
+    h+='<div style="background:rgba(99,161,220,.03);border:1px solid var(--border);border-left:3px solid var(--border2);border-radius:var(--r);padding:10px 16px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:8px;">';
+    for(let i=1;i<=n;i++) if(res.Y[i]===0) h+='<span style="color:var(--ink3);">F'+i+'</span>';
+    h+='</div>';
+  }
+
+  h+='<div style="font-size:.65rem;font-weight:700;color:var(--gold);letter-spacing:1.5px;margin-bottom:6px;">&#9472;&#9472; CUSTOMER ASSIGNMENT x<sub>ij</sub> (1 = assigned)</div>';
+  h+='<div style="overflow-x:auto;margin-bottom:14px;"><table style="border-collapse:collapse;font-size:.75rem;">';
+  h+='<thead><tr><th style="border:1px solid var(--border);padding:7px 12px;background:var(--bg2);color:var(--ink3);font-size:.65rem;">F \\ D</th>';
+  for(let j=1;j<=m;j++) h+='<th style="border:1px solid var(--border);padding:7px 10px;background:var(--bg2);color:var(--gold);font-size:.65rem;">D'+j+'<br><span style="opacity:.6;font-size:.6rem;">D='+D[j]+'</span></th>';
+  h+='<th style="border:1px solid var(--border);padding:7px 10px;background:var(--bg2);color:var(--cyan);font-size:.65rem;">Load</th>';
+  h+='<th style="border:1px solid var(--border);padding:7px 10px;background:var(--bg2);color:var(--ink3);font-size:.65rem;">Cap</th></tr></thead><tbody>';
+  for(let i=1;i<=n;i++){
+    const open=res.Y[i]===1;
+    h+='<tr><td style="border:1px solid var(--border);padding:7px 12px;background:var(--bg2);color:'+(open?'var(--cyan)':'var(--ink3)')+';font-family:var(--mono);font-weight:700;">F'+i+(open?' &#9679;':'')+'</td>';
+    let load=0;
+    for(let j=1;j<=m;j++){
+      const v=res.X[i][j];load+=D[j]*v;
+      const col=v===1?(open?'var(--cyan)':'var(--gold)'):'var(--ink3)';
+      h+='<td style="border:1px solid var(--border);padding:7px 10px;color:'+col+';font-family:var(--mono);font-weight:'+(v===1?'700':'400')+';">'+(v===1?'1':'—')+'</td>';
+    }
+    h+='<td style="border:1px solid var(--border);padding:7px 10px;color:'+(open?'var(--cyan)':'var(--ink3)')+';font-family:var(--mono);font-weight:700;">'+(open?load.toFixed(0):'—')+'</td>';
+    h+='<td style="border:1px solid var(--border);padding:7px 10px;color:var(--ink3);font-family:var(--mono);">'+K[i]+'</td></tr>';
+  }
+  h+='</tbody></table></div>';
+
+  h+='<div style="font-size:.65rem;font-weight:700;color:var(--purple);letter-spacing:1.5px;margin-bottom:6px;">&#9472;&#9472; CUSTOMER ASSIGNMENTS</div>';
+  h+='<div style="background:rgba(192,132,252,.04);border:1px solid rgba(192,132,252,.13);border-left:3px solid var(--purple);border-radius:var(--r);padding:11px 16px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:10px;">';
+  for(let j=1;j<=m;j++){
+    let assignedTo=-1;
+    for(let i=1;i<=n;i++) if(res.X[i][j]===1){assignedTo=i;break;}
+    const col=assignedTo>0?'var(--cyan)':'var(--red)';
+    h+='<div style="background:rgba(192,132,252,.07);border:1px solid rgba(192,132,252,.2);border-radius:6px;padding:5px 11px;font-size:.75rem;">';
+    h+='<span style="color:var(--gold);font-weight:700;">D'+j+'</span><span style="color:var(--ink3);">('+D[j]+')</span> &rarr; ';
+    h+='<span style="color:'+col+';font-weight:700;">'+(assignedTo>0?'F'+assignedTo:'unassigned')+'</span></div>';
+  }
+  h+='</div>';
+
+  let transCost=0, fixedTotal=0;
+  for(let i=1;i<=n;i++) for(let j=1;j<=m;j++) transCost+=D[j]*C[i][j]*res.X[i][j];
+  for(let i=1;i<=n;i++) fixedTotal+=f[i]*res.Y[i];
+  h+='<div style="font-size:.65rem;font-weight:700;color:var(--ink3);letter-spacing:1.5px;margin-bottom:6px;">&#9472;&#9472; COST BREAKDOWN</div>';
+  h+='<div style="background:rgba(90,240,144,.04);border:1px solid rgba(90,240,144,.13);border-left:3px solid var(--green);border-radius:var(--r);padding:11px 16px;">';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">';
+  h+='<div><div style="font-size:.65rem;color:var(--ink3);">Transport (ΣΣ D<sub>j</sub>c<sub>ij</sub>x<sub>ij</sub>)</div><span style="color:var(--green);font-weight:700;">'+transCost.toFixed(2)+'</span></div>';
+  h+='<div><div style="font-size:.65rem;color:var(--ink3);">Fixed Opening (Σ f<sub>i</sub>y<sub>i</sub>)</div><span style="color:var(--gold);font-weight:700;">'+fixedTotal.toFixed(2)+'</span></div>';
+  h+='<div><div style="font-size:.65rem;color:var(--ink3);">Total Z*</div><span style="color:var(--purple);font-weight:700;">'+(transCost+fixedTotal).toFixed(2)+'</span></div>';
+  h+='</div></div>';
+  el.innerHTML=h;
+}
+
+window.addEventListener('DOMContentLoaded',()=>{buildTables();});
+</script>
+</body>
+</html>
